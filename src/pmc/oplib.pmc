@@ -1,0 +1,130 @@
+/*
+Copyright (C) 2010, Parrot Foundation.
+$Id$
+
+=head1 NAME
+
+src/pmc/oplib.pmc
+
+=head1 DESCRIPTION
+
+Implements oplib VTABLEs.
+
+=cut
+
+*/
+
+#include "parrot/parrot.h"
+
+/* HEADERIZER HFILE: none */
+/* HEADERIZER BEGIN: static */
+/* HEADERIZER END: static */
+
+/* TODO: Since Opcode PMCs are essentially read-only after initialization
+         here, we should cache them. A FixedPMCArray would be okay, an
+         INTVAL->PMC HASH might be better, since it's unlikely that we will
+         need to cache even a majority of the ~1300 ops. */
+static PMC *OPLIB_PMC_INSTANCE;
+static PMC *OPLIB_OPCODE_CACHE;
+pmclass OpLib singleton {
+    void class_init() {
+        OPLIB_PMC_INSTANCE = NULL;
+        OPLIB_OPCODE_CACHE = NULL;
+    }
+
+    VTABLE void *get_pointer() {
+        return OPLIB_PMC_INSTANCE;
+    }
+
+    VTABLE void set_pointer(void *ptr) {
+        OPLIB_PMC_INSTANCE = (PMC *)ptr;
+    }
+
+    VTABLE void init() {
+        if (OPLIB_OPCODE_CACHE == NULL) {
+            OPLIB_OPCODE_CACHE = Parrot_pmc_new(INTERP, enum_class_Hash);
+            Parrot_pmc_gc_register(INTERP, OPLIB_OPCODE_CACHE);
+        }
+        PObj_custom_mark_SET(SELF);
+    }
+
+    VTABLE void mark() {
+        if (OPLIB_OPCODE_CACHE != NULL)
+            Parrot_gc_mark_PMC_alive(INTERP, OPLIB_OPCODE_CACHE);
+    }
+
+    /* Look up an opnumber given the name of the op. First we look for the
+       specific name, then the more general short name. */
+    VTABLE INTVAL get_integer_keyed_str(STRING *name) {
+        char * const cstr = Parrot_str_to_cstring(INTERP, name);
+        INTVAL num = INTERP->op_lib->op_code(INTERP, cstr, 1);
+        if (num == -1)
+            num = INTERP->op_lib->op_code(INTERP, cstr, 0);
+        Parrot_str_free_cstring(cstr);
+        return num;
+    }
+
+    VTABLE INTVAL get_integer_keyed(PMC *key) {
+        STRING *str_key = key_string(INTERP, key);
+        return SELF.get_integer_keyed_str(str_key);
+    }
+
+    VTABLE PMC* get_pmc_keyed_str(STRING *name) {
+        if (VTABLE_defined_keyed_str(INTERP, OPLIB_OPCODE_CACHE, name)) {
+            PMC * const op = VTABLE_get_pmc_keyed_str(INTERP, OPLIB_OPCODE_CACHE, name);
+            return op;
+        }
+        else {
+            PMC * const op = Parrot_pmc_new_noinit(INTERP, enum_class_Opcode);
+            VTABLE_set_string_native(INTERP, op, name);
+            PObj_custom_mark_SET(op);
+            VTABLE_set_pmc_keyed_str(INTERP, OPLIB_OPCODE_CACHE, name, op);
+            return op;
+        }
+    }
+
+    VTABLE PMC* get_pmc_keyed(PMC *key) {
+        STRING * const strkey = VTABLE_get_string(INTERP, key);
+        return VTABLE_get_pmc_keyed_str(INTERP, SELF, strkey);
+    }
+
+    VTABLE PMC* get_pmc_keyed_int(INTVAL value) {
+        if ((UINTVAL)value > INTERP->op_lib->op_count)
+            Parrot_ex_throw_from_c_args(INTERP, NULL, EXCEPTION_OUT_OF_BOUNDS,
+                "OpLib: Opcode index %d out of bounds", value);
+        else {
+            const char * const name   = INTERP->op_info_table[value].full_name;
+            STRING     * const newstr = Parrot_str_new(INTERP, name, 0);
+            return VTABLE_get_pmc_keyed_str(INTERP, SELF, newstr);
+        }
+    }
+
+    VTABLE INTVAL get_integer() {
+        return INTERP->op_lib->op_count;
+    }
+
+    METHOD op_family(STRING *shortname)
+    {
+        char * const sname = Parrot_str_to_cstring(INTERP, shortname);
+        const op_lib_t * const op_lib = INTERP->op_lib;
+        const op_info_t * const table = op_lib->op_info_table;
+        PMC *result = PMCNULL;
+        UINTVAL i;
+        for (i = 0; i < op_lib->op_count; ++i) {
+            if (strcmp(table[i].name, sname) == 0) {
+                if (PMC_IS_NULL(result))
+                    result = Parrot_pmc_new(INTERP, enum_class_ResizablePMCArray);
+                VTABLE_push_pmc(INTERP, result, SELF.get_pmc_keyed_int(i));
+            }
+        }
+        Parrot_str_free_cstring(sname);
+        RETURN(PMC *result);
+    }
+}
+
+/*
+ * Local variables:
+ *   c-file-style: "parrot"
+ * End:
+ * vim: expandtab shiftwidth=4:
+ */

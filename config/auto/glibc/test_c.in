@@ -1,0 +1,30 @@
+/*
+Copyright (C) 2008-2009, Parrot Foundation.
+$Id$
+
+seeing if GNU libc is installed
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+int
+main()
+{
+    puts("(");
+#ifdef __GLIBC__
+    printf("glibc => %d,\n", __GLIBC__);
+#else
+    printf("glibc => undef,\n");
+#endif
+    puts(");");
+
+    return EXIT_SUCCESS;
+}
+
+/*
+ * Local variables:
+ *   c-file-style: "parrot"
+ * End:
+ * vim: expandtab shiftwidth=4:
+ */

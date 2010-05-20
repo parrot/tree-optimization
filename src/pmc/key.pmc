@@ -1,0 +1,408 @@
+/*
+Copyright (C) 2001-2009, Parrot Foundation.
+$Id$
+
+=head1 NAME
+
+src/pmc/key.pmc - Key PMC
+
+=head1 DESCRIPTION
+
+These are the vtable functions for the Key PMC class.
+
+=head2 Methods
+
+=over 4
+
+=cut
+
+*/
+
+/* HEADERIZER HFILE: none */
+/* HEADERIZER BEGIN: static */
+/* HEADERIZER END: static */
+
+pmclass Key auto_attrs {
+    ATTR PMC      *next_key; /* Sometimes it's the next key, sometimes it's
+                                not.  The Key code is like that. */
+    ATTR INTVAL    int_key;  /* int value of this key, or something magical if
+                                it's a hash iterator key */
+    ATTR FLOATVAL  num_key;  /* num value of this key, if any */
+    ATTR STRING   *str_key;  /* STRING value of this key, if any */
+                             /* Theoretically there'd also be a pmc_key here,
+                              * but that code looks broken and unneeded. */
+
+
+/*
+
+=item C<void init()>
+
+Initializes the key.
+
+=cut
+
+*/
+
+    VTABLE void init() {
+        PObj_custom_mark_SET(SELF);
+    }
+
+/*
+
+=item C<PMC *clone()>
+
+Creates and returns a clone of the key.
+
+=cut
+
+*/
+
+    VTABLE PMC *clone() {
+        PMC * const dest = Parrot_pmc_new(INTERP, SELF->vtable->base_type);
+        PMC *dkey        = dest;
+        PMC *key         = SELF;
+
+        for (; key ;) {
+            switch (PObj_get_FLAGS(key) & KEY_type_FLAGS) {
+              case KEY_integer_FLAG:
+              case KEY_integer_FLAG | KEY_register_FLAG:
+                key_set_integer(INTERP, dkey, key_integer(INTERP, key));
+                break;
+              case KEY_number_FLAG:
+              case KEY_number_FLAG | KEY_register_FLAG:
+                key_set_number(INTERP, dkey, key_number(INTERP, key));
+                break;
+              case KEY_string_FLAG:
+              case KEY_string_FLAG | KEY_register_FLAG:
+                key_set_string(INTERP, dkey, VTABLE_get_string(INTERP, key));
+                break;
+              case KEY_pmc_FLAG:
+              case KEY_pmc_FLAG | KEY_register_FLAG:
+                {
+                    PMC * const p = key_pmc(INTERP, key);
+                    key_set_pmc(INTERP, dkey, VTABLE_clone(INTERP, p));
+                }
+                break;
+              default:
+                break;
+            }
+
+            key = key_next(INTERP, key);
+
+            if (key) {
+                PMC * const p = key_new(INTERP);
+                key_append(INTERP, dkey, p);
+                dkey = p;
+            }
+        }
+
+        return dest;
+    }
+
+/*
+
+=item C<void mark()>
+
+Marks the key as live.
+
+=cut
+
+*/
+
+    VTABLE void mark() {
+        key_mark(INTERP, SELF);
+    }
+
+/*
+
+=item C<INTVAL get_integer()>
+
+Returns the integer value of the key.
+
+=cut
+
+*/
+
+    VTABLE INTVAL get_integer() {
+        return key_integer(INTERP, SELF);
+    }
+
+/*
+
+=item C<FLOATVAL get_number()>
+
+Returns the floating-point number value of the key.
+
+=cut
+
+*/
+
+    VTABLE FLOATVAL get_number() {
+        return key_number(INTERP, SELF);
+    }
+
+/*
+
+=item C<STRING *get_string()>
+
+Returns the Parrot string value of the key.
+
+=cut
+
+*/
+
+    VTABLE STRING *get_string() {
+        /* key_string() is only useful if this PMC has a key type */
+        if (PObj_get_FLAGS(SELF) & KEY_type_FLAGS)
+            return key_string(INTERP, SELF);
+
+        return CONST_STRING(INTERP, "");
+    }
+
+/*
+
+=item C<PMC *get_pmc()>
+
+Returns the PMC value of the key.
+
+=cut
+
+*/
+
+    VTABLE PMC *get_pmc() {
+        return key_pmc(INTERP, SELF);
+    }
+
+/*
+
+=item C<void set_integer_native(INTVAL value)>
+
+=cut
+
+*/
+
+    VTABLE void set_integer_native(INTVAL value) {
+        key_set_integer(INTERP, SELF, value);
+    }
+
+/*
+
+=item C<void set_number_native(FLOATVAL value)>
+
+Sets the value of the key to C<value>.
+
+=cut
+
+*/
+
+    VTABLE void set_number_native(FLOATVAL value) {
+        key_set_number(INTERP, SELF, value);
+    }
+
+/*
+
+=item C<void set_string_native(STRING *value)>
+
+
+=cut
+
+*/
+
+    VTABLE void set_string_native(STRING *value) {
+        key_set_string(INTERP, SELF, value);
+    }
+
+/*
+
+=item C<void set_pmc(PMC *value)>
+
+Sets the value of the key to C<*value>.
+
+=cut
+
+*/
+
+    VTABLE void set_pmc(PMC *value) {
+        key_set_pmc(INTERP, SELF, value);
+    }
+
+/*
+
+=item C<void push_pmc(PMC *value)>
+
+Appends C<*value> to the key.
+
+=cut
+
+*/
+
+    void push_pmc(PMC *value) {
+        if (value->vtable->base_type != enum_class_Key)
+            Parrot_ex_throw_from_c_args(INTERP, NULL, EXCEPTION_INVALID_OPERATION,
+                "Can only push another Key onto a Key PMC.");
+
+        key_append(INTERP, SELF, value);
+    }
+
+/*
+
+=item C<PMC *shift_pmc()>
+
+Returns the next key.
+
+Actually doesn't remove the entry but might be useful to traverse a key
+chain.
+
+=cut
+
+*/
+
+    VTABLE PMC *shift_pmc() {
+        PMC *next_key;
+
+        GET_ATTR_next_key(INTERP, SELF, next_key);
+        return next_key;
+    }
+
+/*
+
+=back
+
+=head2 Iterator Interface
+
+=over 4
+
+=item C<PMC *get_pmc_keyed(PMC *key)>
+
+Returns the key itself.
+
+=cut
+
+*/
+
+    VTABLE PMC *get_pmc_keyed(PMC *key) {
+        return key;
+    }
+
+/*
+
+=item C<void visit(PMC *info)>
+
+This is used by freeze/thaw to visit the contents of the Key.
+
+=item C<void freeze(PMC *info)>
+
+Archives the Key.
+
+=item C<void thaw(PMC *info)>
+
+Unarchives the Key.
+
+=item C<void thawfinish(PMC *info)>
+
+Called after the Key has been thawed: convert last PMC_NULL key to NULL.
+
+=cut
+
+*/
+
+    VTABLE void visit(PMC *info) {
+        /* Sometimes visit gets an uninitialized Key.  Initialize it. */
+        if (!PMC_data(SELF))
+            SELF.init();
+
+        VISIT_PMC_ATTR(INTERP, info, SELF, Key, next_key);
+    }
+
+    void freeze(PMC *info) {
+        /* write flags */
+        const INTVAL flags  = (PObj_get_FLAGS(SELF) & KEY_type_FLAGS);
+
+        /* write the contents of a register - else thaw can't restore
+         * the register state */
+        VTABLE_push_integer(INTERP, info, flags & ~KEY_register_FLAG);
+
+        /* and contents of this key component */
+        switch (flags) {
+          case KEY_integer_FLAG:
+          case KEY_integer_FLAG | KEY_register_FLAG:
+            VTABLE_push_integer(INTERP, info, key_integer(INTERP, SELF));
+            break;
+          case KEY_number_FLAG:
+          case KEY_number_FLAG | KEY_register_FLAG:
+            VTABLE_push_float(INTERP, info, key_number(INTERP, SELF));
+            break;
+          case KEY_string_FLAG:
+          case KEY_string_FLAG | KEY_register_FLAG:
+            VTABLE_push_string(INTERP, info, key_string(INTERP, SELF));
+            break;
+          default:
+            Parrot_ex_throw_from_c_args(INTERP, NULL, EXCEPTION_KEY_NOT_FOUND,
+                    "Unsupported key type in Key.freeze");
+            break;
+        }
+    }
+
+    void thaw(PMC *info) {
+        const INTVAL flags  = VTABLE_shift_integer(INTERP, info) & KEY_type_FLAGS;
+
+        PObj_get_FLAGS(SELF) |= flags;
+        PObj_custom_mark_SET(SELF);
+
+        if (!PMC_data(SELF))
+            SELF.init();
+
+        /* get contents */
+        switch (flags) {
+          case KEY_integer_FLAG:
+            SET_ATTR_int_key(INTERP, SELF, VTABLE_shift_integer(INTERP, info));
+            break;
+          case KEY_number_FLAG:
+            VTABLE_set_number_native(INTERP, SELF, VTABLE_shift_float(INTERP, info));
+            break;
+          case KEY_string_FLAG:
+            VTABLE_set_string_native(INTERP, SELF, VTABLE_shift_string(INTERP, info));
+            break;
+          default:
+            Parrot_ex_throw_from_c_args(INTERP, NULL, EXCEPTION_KEY_NOT_FOUND,
+                    "Unsupported key type in Key.thaw");
+            break;
+        }
+    }
+
+    VTABLE void thawfinish(PMC *info) {
+        PMC *key = SELF;
+        UNUSED(info)
+
+        while (1) {
+            PMC *next;
+            GET_ATTR_next_key(INTERP, key, next);
+
+            if (PMC_IS_NULL(next)) {
+                SET_ATTR_next_key(INTERP, key, NULL);
+                break;
+            }
+
+            key = next;
+        }
+    }
+
+    VTABLE STRING* get_repr() {
+        return key_set_to_string(INTERP, SELF);
+    }
+}
+
+/*
+
+=back
+
+=cut
+
+*/
+
+/*
+ * Local variables:
+ *   c-file-style: "parrot"
+ * End:
+ * vim: expandtab shiftwidth=4:
+ */

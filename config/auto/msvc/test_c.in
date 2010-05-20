@@ -1,0 +1,36 @@
+/*
+Copyright (C) 2005-2009, Parrot Foundation.
+$Id$
+
+figure out if the compiler is msvc.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+int
+main(int argc, char *argv[])
+{
+    puts("(");
+#ifdef _MSC_VER
+    printf("_MSC_VER => %d,\n", _MSC_VER);
+#else
+    printf("_MSC_VER => undef,\n");
+#endif
+
+#ifdef _MSC_FULL_VER
+    printf("_MSC_FULL_VER => %d,\n", _MSC_FULL_VER);
+#else
+    printf("_MSC_FULL_VER => undef,\n");
+#endif
+    puts(");");
+
+    return EXIT_SUCCESS;
+}
+
+/*
+ * Local variables:
+ *   c-file-style: "parrot"
+ * End:
+ * vim: expandtab shiftwidth=4:
+ */

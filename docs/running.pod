@@ -1,0 +1,273 @@
+# Copyright (C) 2001-2009, Parrot Foundation.
+# $Id$
+
+=head1 NAME
+
+Parrot - Running
+
+=head1 VERSION
+
+$Revision$
+
+=head1 OVERVIEW
+
+This document describes Parrot's command line options.
+
+=head1 SYNOPSIS
+
+ parrot [-options] <file> [arguments ...]
+
+=head1 ENVIRONMENT
+
+=over 4
+
+=item PARROT_RUNTIME
+
+If this environment variable is set, parrot will use this path as its runtime
+prefix instead of the compiled in path.
+
+=item PARROT_GC_DEBUG
+
+Turn on the I<--gc-debug> flag.
+
+=back
+
+=head1 OPTIONS
+
+=head2 Assembler options
+
+=over 4
+
+=item -a, --pasm
+
+Assume PASM input on stdin.
+
+=item -c, --pbc
+
+Assume PBC file on stdin, run it.
+
+=item -d, --imcc-debug [hexbits]
+
+The B<-d> switch takes an optional argument which is considered to hold a hex
+value of debug bits. Without a value, debug is set to 1.
+
+The individual bits can be listed on the command line by use of the
+B<--help-debug> switch.
+
+To produce really huge output on F<stderr> run C<"parrot B<-d 0ffff> ...">.
+Note: If the argument is separated by whitespace from the B<-d>
+switch, it has to start with a number.
+
+=item -h, --help
+
+Print command line option summary.
+
+=item --help-debug
+
+Print debugging and tracing flag bits summary.
+
+=item -o outputfile, --output=outputfile
+
+Act like an assembler. Don't run code, unless B<-r> is given too. If the
+outputfile ends with F<.pbc>, a PBC file is written. If it ends with F<.pasm>,
+a PASM output is generated, even from PASM input. This can be handy to check
+various optimizations, including C<-Op>.
+
+=item --output-pbc
+
+Act like an assembler, but always output bytecode, even if the output file does
+not end in F<.pbc>
+
+=item -r, --run-pbc
+
+Only useful after C<-o> or C<--output-pbc>. Run the program from the compiled
+in-memory image. If two C<-r> options are given, the F<.pbc> file is read from
+disc and run. This is mainly needed for tests.
+
+=item -v, --verbose
+
+One C<-v> shows which files are worked on and prints a summary over register
+usage and optimization stats per I<subroutine>.  With two C<-v> switches,
+C<parrot> prints a line per individual processing step too.
+
+=item -y, --yydebug
+
+Turn on yydebug in F<yacc>/F<bison>.
+
+=item -V, --version
+
+Print version information and exit.
+
+=item -Ox
+
+Optimize
+
+ -O0 no optimization (default)
+ -O1 optimizations without life info (e.g. branches)
+ -O  same
+ -O2 optimizations with life info
+ -Op rewrite I and N PASM registers most used first
+ -Ot select fastest runcore
+ -Oc turns on the optional/experimental tail call optimizations
+
+See F<docs/dev/optimizer.pod> for more information on the optimizer.  Note that
+optimization is currently experimental and these options are likely to change.
+
+=item -E, --pre-process-only
+
+Preprocess source file (expand macros) and print result to stdout:
+
+  $ parrot -E t/op/macro_10.pasm
+  $ parrot -E t/op/macro_10.pasm | parrot -- -
+
+=back
+
+=head2 Runcore Options
+
+These options select the runcore, which is useful for performance tuning and
+debugging.  See L<About runcores> for details.
+
+=over 4
+
+=item -R, --runcore CORE
+
+Select the runcore. The following cores are available in Parrot, but not all
+may be available on your system:
+
+  slow, bounds  bounds checking core (default)
+  gcdebug       performs a full GC run before every op dispatch (good for
+                debugging GC problems)
+  trace         bounds checking core w/ trace info (see 'parrot --help-debug')
+  profiling     see F<docs/dev/profilling.pod>
+
+The C<jit>, C<switch-jit>, and C<cgp-jit> options are currently aliases for the
+C<fast>, C<switch>, and C<cgp> options, respectively.  We do not recommend
+their use in new code; they will continue working for existing code per our
+deprecation policy.
+
+=item -p, --profile
+
+Run with the slow core and print an execution profile.
+
+=item -t, --trace
+
+Run with the slow core and print trace information to B<stderr>. See C<parrot
+--help-debug> for available flag bits.
+
+=back
+
+=head2 VM Options
+
+=over 4
+
+=item -w, --warnings
+
+Turn on warnings. See C<parrot --help-debug> for available flag bits.
+
+=item -D, --parrot-debug
+
+Turn on interpreter debug flag. See C<parrot --help-debug> for available flag
+bits.
+
+=item --gc-debug
+
+Turn on GC (Garbage Collection) debugging. This imposes some stress on the GC
+subsystem and can slow down execution considerably.
+
+=item -G, --no-gc
+
+This turns off GC. This may be useful to find GC related bugs. Don't use this
+option for longer running programs: as memory is no longer recycled, it may
+quickly become exhausted.
+
+=item --leak-test, --destroy-at-end
+
+Free all memory of the last interpreter.  This is useful when running leak
+checkers.
+
+=item -., --wait
+
+Read a keystroke before starting.  This is useful when you want to attach a
+debugger on platforms such as Windows.
+
+=item --runtime-prefix
+
+Print the runtime prefix path and exit.
+
+=back
+
+=head2 <file>
+
+If the file ends in F<.pbc> it will be interpreted immediately.
+
+If the file ends in F<.pasm>, then it is parsed as PASM code. Otherwise, it is
+parsed as PIR code. In both cases, it will then be run, unless the C<-o> flag
+was given.
+
+If the C<file> is a single dash, input from C<stdin> is read.
+
+=head2 [arguments ...]
+
+Optional arguments passed to the running program as ARGV. The program is
+assumed to know what to do with these.
+
+=head1 Generated files
+
+=head1 About runcores
+
+The runcore (or runloop) tells Parrot how to find the C code that implements
+each instruction.  Parrot provides more than one way to do this, partly because
+no single runcore will perform optimally on all architectures (or even for all
+problems on a given architecture), and partly because some of the runcores have
+specific debugging and tracing capabilities.
+
+In the default "slow" runcore, each opcode is a separate C function.
+That's pretty easy in pseudocode:
+
+    slow_runcore( op ):
+        while ( op ):
+            op = op_function( op )
+            check_for_events()
+
+The GC debugging runcore is similar:
+
+    gcdebug_runcore( op ):
+        while ( op ):
+            perform_full_gc_run()
+            op = op_function( op )
+            check_for_events()
+
+Of course, this is much slower, but is extremely helpful for pinning memory
+corruption problems that affect GC down to single-instruction resolution.  See
+L<http://www.oreillynet.com/onlamp/blog/2007/10/debugging_gc_problems_in_parro.html>
+for more information.
+
+The trace and profile cores are also based on the "slow" core, doing
+full bounds checking, and also printing runtime information to stderr.
+
+=head1 Operation table
+
+ Command Line          Action         Output
+ ---------------------------------------------
+ parrot x.pir          run
+ parrot x.pasm         run
+ parrot x.pbc          run
+ -o x.pasm x.pir       ass            x.pasm
+ -o x.pasm y.pasm      ass            x.pasm
+ -o x.pbc  x.pir       ass            x.pbc
+ -o x.pbc  x.pasm      ass            x.pbc
+ -o x.pbc -r x.pasm    ass/run pasm   x.pbc
+ -o x.pbc -r -r x.pasm ass/run pbc    x.pbc
+ -o x.o    x.pbc       obj
+
+... where the possible actions are:
+
+  run ... yes, run the program
+  ass ... assemble sourcefile
+  obj ..  produce native (ELF) object file for the EXEC subsystem
+
+=head1 FILES
+
+F<main.c>
+
+=cut

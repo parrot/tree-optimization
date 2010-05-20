@@ -1,0 +1,41 @@
+# Copyright (C) 2007, Parrot Foundation.
+# $Id$
+
+=pod
+
+=head1 TITLE
+
+The Headerizer
+
+=head1 AUTHOR
+
+Andy Lester C<< andy@petdance.com >>
+
+=head1 INTRODUCTION
+
+The Headerizer (F<tools/build/headerizer.pl>) is a tool that generates
+chunks of F<.h> header files based on C source code.
+
+The long-term plan for the headerizer is that it will take all
+the prototypes for all the functions and populate all the .h files
+automatically.  No need to worry about differences between header and
+source, because the header comes from it.  It'll also auto-generate
+attributes for each of the functions that work with GCC.
+
+=head1 RUNNING THE HEADERIZER
+
+Yesterday there was a problem where I forgot to put PARROT_EXPORT on the
+function in source, so linking on Windows broke.  If that happens again,
+here's what you do:
+
+=over 4
+
+=item * Run Configure.pl
+
+=item * Update the source with PARROT_EXPORT above the return type
+
+=item * Run "make headerizer"
+
+=back
+
+The .h file should now have PARROT_EXPORT for the function in question.

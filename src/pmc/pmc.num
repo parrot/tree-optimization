@@ -1,0 +1,81 @@
+# build and class enum order of all pmcs
+# filenam {ws} number
+# parents of some class should be listed before their childs
+
+# default must be 0
+
+default.pmc    0
+
+# now utility PMCs that don't do MMD
+
+null.pmc    1
+env.pmc    2
+perlenv.pmc    3
+key.pmc    4
+random.pmc    5
+unmanagedstruct.pmc    6
+managedstruct.pmc    7
+csub.pmc    8
+compiler.pmc    9
+exception.pmc    10
+version.pmc    11
+parrotio.pmc    12
+parrotlibrary.pmc    13
+constparrotlibrary.pmc    14
+parrotinterpreter.pmc    15
+parrotthread.pmc    16
+lexpad.pmc    17
+timer.pmc    18
+pointer.pmc    19
+
+# sub and subroutine like pmcs
+
+sub.pmc    20
+continuation.pmc    21
+retcontinuation.pmc    22
+exception_handler.pmc    23
+coroutine.pmc    24
+eval.pmc    25
+nci.pmc    26
+
+# scalars
+
+# base types
+float.pmc    27
+integer.pmc    28
+bigint.pmc    29
+bignum.pmc    30
+complex.pmc    31
+string.pmc    32
+
+# abstract perlscalar.pmc
+perlint.pmc    33
+perlstring.pmc    34
+perlundef.pmc    35
+boolean.pmc    36
+
+ref.pmc    37
+sharedref.pmc    38
+
+# arrays XXX this list isn't complete
+
+fixedintegerarray.pmc    39
+iterator.pmc    40
+perlarray.pmc    41
+pmcarray.pmc    42
+sarray.pmc    43
+constsarray.pmc    44
+fixedstringarray.pmc    45
+
+# hashes
+hash.pmc    46
+perlhash.pmc    47
+orderedhash.pmc    48
+
+# other
+
+parrotclass.pmc    49
+parrotobject.pmc    50
+
+oplib.pmc    51
+opcode.pmc    52

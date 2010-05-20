@@ -1,0 +1,558 @@
+/*
+
+$Id$
+
+object.ops
+
+*/
+
+=head1 NAME
+
+object.ops - Class and Object Opcodes
+
+=head1 DESCRIPTION
+
+Parrot's library of object ops
+
+=over 4
+
+=cut
+
+=item B<callmethodcc>(invar PMC, in STR)
+
+Call method $2 with invocant $1 and generate a new return continuation.
+The invocant ($1) is used for method lookup. The object is passed as
+the first argument in B<set_args>.
+
+Throws a Method_Not_Found_Exception for a non-existent method.
+
+=item B<callmethodcc>(invar PMC, invar PMC)
+
+Like above but use the Sub object $2 as method.
+
+=item B<callmethod>(invar PMC, in STR, invar PMC)
+
+=item B<callmethod>(invar PMC, invar PMC, invar PMC)
+
+Like above, but use continuation $3 instead of creating a new continuation.
+
+=cut
+
+=item B<tailcallmethod>(invar PMC, in STR)
+
+=item B<tailcallmethod>(invar PMC, invar PMC)
+
+Make a tailcall to method $2 with invocant $1.
+
+=cut
+
+op callmethodcc(invar PMC, in STR) :object_base :flow {
+    PMC      * const object     = $1;
+    STRING   * const meth       = $2;
+    opcode_t * const next       = expr NEXT();
+
+    PMC      * const method_pmc = VTABLE_find_method(interp, object, meth);
+    opcode_t *dest              = NULL;
+    PMC      * const signature  = Parrot_pcc_get_signature(interp,
+                                    CURRENT_CONTEXT(interp));
+
+    if (PMC_IS_NULL(method_pmc)) {
+        PMC * const _class = VTABLE_get_class(interp, object);
+        if (PMC_IS_NULL(_class)) {
+            dest = Parrot_ex_throw_from_op_args(interp, next,
+                EXCEPTION_METHOD_NOT_FOUND,
+                "Method '%Ss' not found for non-object", meth);
+        }
+        else {
+            dest = Parrot_ex_throw_from_op_args(interp, next,
+                EXCEPTION_METHOD_NOT_FOUND,
+                "Method '%Ss' not found for invocant of class '%Ss'", meth,
+                VTABLE_get_string(interp, _class));
+        }
+    }
+    else {
+        if (!PMC_IS_NULL(signature))
+            Parrot_pcc_set_object(interp, signature, object);
+        interp->current_cont   = NEED_CONTINUATION;
+        dest                   = VTABLE_invoke(interp, method_pmc, next);
+    }
+    goto ADDRESS(dest);
+}
+
+op callmethodcc(invar PMC, invar PMC) :object_base :flow {
+    opcode_t        *dest;
+    opcode_t * const next  = expr NEXT();
+    PMC      *       signature  = Parrot_pcc_get_signature(interp,
+                                    CURRENT_CONTEXT(interp));
+
+    if (!PMC_IS_NULL(signature))
+        Parrot_pcc_set_object(interp, signature, $1);
+    interp->current_cont   = NEED_CONTINUATION;
+    dest                   = VTABLE_invoke(interp, $2, next);
+
+    goto ADDRESS(dest);
+}
+
+op callmethod(invar PMC, in STR, invar PMC) :object_base :flow {
+    PMC      * const object     = $1;
+    STRING   * const meth       = $2;
+    opcode_t * const next       = expr NEXT();
+
+    PMC      * const method_pmc = VTABLE_find_method(interp, object, meth);
+    opcode_t *dest              = NULL;
+    PMC      *       signature  = Parrot_pcc_get_signature(interp,
+                                    CURRENT_CONTEXT(interp));
+
+
+    if (PMC_IS_NULL(method_pmc)) {
+        dest = Parrot_ex_throw_from_op_args(interp, next, EXCEPTION_METHOD_NOT_FOUND,
+            "Method '%Ss' not found for invocant of class '%Ss'", meth,
+            VTABLE_get_string(interp, VTABLE_get_class(interp, object)));
+    }
+    else {
+        if (!PMC_IS_NULL(signature))
+            Parrot_pcc_set_object(interp, signature, object);
+        interp->current_cont = $3;
+        dest = (opcode_t *)VTABLE_invoke(interp, method_pmc, next);
+    }
+    goto ADDRESS(dest);
+}
+
+op callmethod(invar PMC, invar PMC, invar PMC) :object_base :flow {
+    PMC      * const object     = $1;
+    PMC      * const method_pmc = $2;
+    opcode_t * const next       = expr NEXT();
+
+    opcode_t *dest;
+    PMC      *       signature  = Parrot_pcc_get_signature(interp,
+                                    CURRENT_CONTEXT(interp));
+
+    if (!PMC_IS_NULL(signature))
+        Parrot_pcc_set_object(interp, signature, object);
+    interp->current_cont = $3;
+    dest = (opcode_t *)VTABLE_invoke(interp, method_pmc, next);
+    goto ADDRESS(dest);
+}
+
+op tailcallmethod(invar PMC, in STR) :object_base :flow {
+    opcode_t * const next       = expr NEXT();
+    PMC      * const object     = $1;
+    STRING   * const meth       = $2;
+    PMC      * const method_pmc = VTABLE_find_method(interp, object, meth);
+
+    opcode_t *dest;
+    PMC      *       signature  = Parrot_pcc_get_signature(interp,
+                                    CURRENT_CONTEXT(interp));
+
+    if (PMC_IS_NULL(method_pmc)) {
+        dest = Parrot_ex_throw_from_op_args(interp, next, EXCEPTION_METHOD_NOT_FOUND,
+            "Method '%Ss' not found for invocant of class '%Ss'", meth,
+            VTABLE_get_string(interp, VTABLE_get_class(interp, object)));
+    }
+    else {
+        interp->current_cont = Parrot_pcc_get_continuation(interp, CURRENT_CONTEXT(interp));
+        PObj_get_FLAGS(interp->current_cont) |= SUB_FLAG_TAILCALL;
+        if (!PMC_IS_NULL(signature))
+            Parrot_pcc_set_object(interp, signature, object);
+        dest = (opcode_t *)VTABLE_invoke(interp, method_pmc, next);
+    }
+    goto ADDRESS(dest);
+}
+
+op tailcallmethod(invar PMC, invar PMC) :object_base :flow {
+    opcode_t * const next       = expr NEXT();
+    PMC      * const object     = $1;
+    PMC      * const method_pmc = $2;
+
+    opcode_t *dest;
+    PMC      *       signature  = Parrot_pcc_get_signature(interp,
+                                    CURRENT_CONTEXT(interp));
+
+    interp->current_cont = Parrot_pcc_get_continuation(interp, CURRENT_CONTEXT(interp));
+    PObj_get_FLAGS(interp->current_cont) |= SUB_FLAG_TAILCALL;
+
+    if (!PMC_IS_NULL(signature))
+        Parrot_pcc_set_object(interp, signature, object);
+    dest = (opcode_t *)VTABLE_invoke(interp, method_pmc, next);
+    goto ADDRESS(dest);
+}
+
+=item B<addmethod>(invar PMC, in STR, invar PMC)
+
+Adds $3 as a method named $2 to $1.
+
+=cut
+
+inline op addmethod(invar PMC, in STR, invar PMC) :object_classes {
+    VTABLE_add_method(interp, $1, $2, $3);
+}
+
+
+=item B<can>(out INT, invar PMC, in STR)
+
+Sets result $1 to the result of the "can" vtable function for PMC $2,
+given method $3.
+
+=cut
+
+inline op can(out INT, invar PMC, in STR) :object_base {
+    $1 = VTABLE_can(interp, $2, $3);
+}
+
+
+=item B<does>(out INT, invar PMC, in STR)
+
+Sets result $1 to the result of the "does" vtable function for PMC $2,
+given the role of name $3.
+
+=cut
+
+inline op does(out INT, invar PMC, in STR) :object_base {
+    $1 = $3 ? VTABLE_does(interp, $2, $3) : 0;
+}
+
+=item B<does>(out INT, invar PMC, in PMC)
+
+Sets result $1 to the result of the "does" vtable function for PMC $2,
+given the role $3.
+
+=cut
+
+inline op does(out INT, invar PMC, in PMC) :object_base {
+    $1 = $3 ? VTABLE_does_pmc(interp, $2, $3) : 0;
+}
+
+=item B<isa>(out INT, invar PMC, in STR)
+
+=item B<isa>(out INT, invar PMC, in PMC)
+
+Sets result $1 to the result of the "isa" vtable function for PMC $2,
+given class $3.
+
+=cut
+
+inline op isa(out INT, invar PMC, in STR) :object_base {
+    $1 = $3 ? VTABLE_isa(interp, $2, $3) : 0;
+}
+
+inline op isa(out INT, invar PMC, in PMC) :object_base {
+    $1 = $3 ? VTABLE_isa_pmc(interp, $2, $3) : 0;
+}
+
+###############################################################################
+
+=item B<newclass>(out PMC, in STR)
+
+Create a new Parrot-style class, named $2, and puts the new PMC for it
+into $1.
+
+=item B<newclass>(out PMC, in PMC)
+
+Create a new Parrot-style class, with the name given in $2 as a key,
+namespace, or string PMC.
+
+=cut
+
+inline op newclass(out PMC, in STR) :object_classes {
+    PMC * const name = Parrot_pmc_new(interp, enum_class_String);
+    VTABLE_set_string_native(interp, name, $2);
+    $1 = Parrot_pmc_new_init(interp, enum_class_Class, name);
+}
+
+inline op newclass(out PMC, in PMC) :object_classes {
+    $1 = Parrot_pmc_new_init(interp, enum_class_Class, $2);
+}
+
+=item B<subclass>(out PMC, in PMC)
+
+=item B<subclass>(out PMC, in PMC, in STR)
+
+=item B<subclass>(out PMC, in PMC, in PMC)
+
+Create a new class, put in $1, that is a subclass of $2.  $3, if available
+and not null, is the name of the new class--if not, the subclass is an
+anonymous subclass.
+
+=cut
+
+inline op subclass(out PMC, in PMC) :object_classes :flow {
+    PMC      * const parent_class = Parrot_oo_get_class(interp, $2);
+    opcode_t * const next         = expr NEXT();
+
+    if (PMC_IS_NULL(parent_class)) {
+        opcode_t *handler = Parrot_ex_throw_from_op_args(interp, next,
+            EXCEPTION_NO_CLASS,
+            "Class '%Ss' doesn't exist", VTABLE_get_string(interp, $2));
+        goto ADDRESS(handler);
+    }
+    $1 = Parrot_pmc_new(interp, enum_class_Class);
+    VTABLE_add_parent(interp, $1, parent_class);
+    goto ADDRESS(next);
+}
+
+inline op subclass(out PMC, in PMC, in STR) :object_classes :flow {
+    PMC      * const parent_class = Parrot_oo_get_class(interp, $2);
+    opcode_t * const next         = expr NEXT();
+
+    if (PMC_IS_NULL(parent_class)) {
+        opcode_t * handler = Parrot_ex_throw_from_op_args(interp, next,
+            EXCEPTION_NO_CLASS,
+            "Class '%Ss' doesn't exist", VTABLE_get_string(interp, $2));
+        goto ADDRESS(handler);
+    }
+    $1 = Parrot_oo_newclass_from_str(interp, $3);
+    VTABLE_add_parent(interp, $1, parent_class);
+    goto ADDRESS(next);
+}
+
+inline op subclass(out PMC, in PMC, in PMC) :object_classes :flow {
+    PMC      * const parent_class = Parrot_oo_get_class(interp, $2);
+    opcode_t * const next         = expr NEXT();
+
+    if (PMC_IS_NULL(parent_class)) {
+        opcode_t *handler = Parrot_ex_throw_from_op_args(interp, next,
+            EXCEPTION_NO_CLASS,
+            "Class '%Ss' doesn't exist", VTABLE_get_string(interp, $2));
+        goto ADDRESS(handler);
+    }
+    $1 = Parrot_pmc_new_init(interp, enum_class_Class, $3);
+    VTABLE_add_parent(interp, $1, parent_class);
+    goto ADDRESS(next);
+}
+
+=item B<subclass>(out PMC, in STR)
+
+=item B<subclass>(out PMC, in STR, in STR)
+
+=item B<subclass>(out PMC, in STR, in PMC)
+
+Create a new class, put in $1, that is a subclass of the class named $2.
+$3, if available and not null, is the name of the new class--if not, the
+subclass is an anonymous subclass.
+
+=cut
+
+
+op subclass(out PMC, in STR) :object_classes :flow {
+    PMC      * const parent_class = Parrot_oo_get_class_str(interp, $2);
+    opcode_t * const next         = expr NEXT();
+
+    if (PMC_IS_NULL(parent_class)) {
+        opcode_t *handler = Parrot_ex_throw_from_op_args(interp, next,
+            EXCEPTION_NO_CLASS,
+            "Class '%Ss' doesn't exist", $2);
+        goto ADDRESS(handler);
+    }
+
+    $1 = Parrot_pmc_new(interp, enum_class_Class);
+    VTABLE_add_parent(interp, $1, parent_class);
+    goto ADDRESS(next);
+}
+
+op subclass(out PMC, in STR, in STR) :object_classes :flow {
+    PMC      * const parent_class = Parrot_oo_get_class_str(interp, $2);
+    opcode_t * const next         = expr NEXT();
+
+    if (PMC_IS_NULL(parent_class)) {
+        opcode_t *handler = Parrot_ex_throw_from_op_args(interp, next,
+            EXCEPTION_NO_CLASS,
+            "Class '%Ss' doesn't exist", $2);
+        goto ADDRESS(handler);
+    }
+
+    $1  = Parrot_oo_newclass_from_str(interp, $3);
+    VTABLE_add_parent(interp, $1, parent_class);
+    goto ADDRESS(next);
+}
+
+op subclass(out PMC, in STR, in PMC) :object_classes :flow {
+    PMC      * const parent_class = Parrot_oo_get_class_str(interp, $2);
+    opcode_t * const next         = expr NEXT();
+
+    if (PMC_IS_NULL(parent_class)) {
+        opcode_t *handler = Parrot_ex_throw_from_op_args(interp, next,
+            EXCEPTION_NO_CLASS,
+            "Class '%Ss' doesn't exist", $2);
+        goto ADDRESS(handler);
+    }
+
+    $1 = Parrot_pmc_new_init(interp, enum_class_Class, $3);
+    VTABLE_add_parent(interp, $1, parent_class);
+    goto ADDRESS(next);
+}
+
+###############################################################################
+
+=item B<get_class>(out PMC, in STR)
+
+=item B<get_class>(out PMC, in PMC)
+
+Find the PMC for a class, by string name or by key.
+
+=cut
+
+inline op get_class(out PMC, in STR) :object_classes {
+    $1 = Parrot_oo_get_class_str(interp, $2);
+}
+
+inline op get_class(out PMC, in PMC) :object_classes {
+    $1 = Parrot_oo_get_class(interp, $2);
+}
+
+###############################################################################
+
+=item B<class>(out PMC, invar PMC)
+
+Get the class PMC for the object in $2 and put it in $1.
+
+=cut
+
+inline op class(out PMC, invar PMC) :object_classes {
+    $1 = VTABLE_get_class(interp, $2);
+}
+
+##################################################
+
+
+=item B<addparent>(invar PMC, invar PMC)
+
+Add class $2 to the list of parent classes for $1.
+
+=cut
+
+inline op addparent(invar PMC, invar PMC) :object_classes {
+    VTABLE_add_parent(interp, $1, $2);
+}
+
+=item B<removeparent>(invar PMC, invar PMC)
+
+Remove class $2 from class $1's list of parents.
+
+=cut
+
+inline op removeparent(invar PMC, invar PMC) :object_classes {
+    VTABLE_remove_parent(interp, $1, $2);
+}
+
+=item B<addrole>(invar PMC, invar PMC)
+
+Compose the role $2 into $1.
+
+=cut
+
+inline op addrole(invar PMC, invar PMC) :object_classes {
+    VTABLE_add_role(interp, $1, $2);
+}
+
+=item B<addattribute>(invar PMC, in STR)
+
+Add the attribute named $2 to the class $1.
+
+=cut
+
+inline op addattribute(invar PMC, in STR) :object_classes {
+    STRING * const class_name  = string_from_literal(interp, "Class");
+    STRING * const role_name   = string_from_literal(interp, "Role");
+
+    if (VTABLE_isa(interp, $1, class_name) || VTABLE_isa(interp, $1, role_name))
+        VTABLE_add_attribute(interp, $1, $2, PMCNULL);
+    else {
+        opcode_t *handler = Parrot_ex_throw_from_op_args(interp, NULL,
+            EXCEPTION_INVALID_OPERATION,
+            "Cannot add attribute to non-class");
+        goto ADDRESS(handler);
+    }
+}
+
+=item B<removeattribute>(invar PMC, in STR) B<(unimplemented)>
+
+Remove attribute $2 from class $1, specified by name.
+
+=cut
+
+op removeattribute(invar PMC, in STR) :object_classes {
+    VTABLE_remove_attribute(interp, $1, $2);
+}
+
+=item B<getattribute>(out PMC, invar PMC, in STR)
+
+Get the attribute $3 from object $2 and put the result in $1.
+
+=item B<getattribute>(out PMC, invar PMC, in PMC, in STR)
+
+Get the attribute $4 from the parent $3 of object $2 and put the
+result in $1. (This is useful for storing data for a parent class
+attribute that is overridden in a child class.) The parent $3 is a
+class name, namespace, or key PMC.
+
+=cut
+
+inline op getattribute(out PMC, invar PMC, in STR) :object_classes {
+    $1 = VTABLE_get_attr_str(interp, $2, $3);
+}
+
+inline op getattribute(out PMC, invar PMC, in PMC, in STR) :object_classes {
+    $1 = VTABLE_get_attr_keyed(interp, $2, $3, $4);
+}
+
+=item B<setattribute>(invar PMC, in STR, invar PMC)
+
+Set attribute $2 of object $1 to $3.
+
+=item B<setattribute>(invar PMC, in PMC, in STR, invar PMC)
+
+Set attribute $3 of the parent $2 of object $1 to $4. (This is useful
+for storing data for a parent class attribute that is overridden in a
+child class.) The parent $2 is a class name, namespace, or key PMC.
+
+=cut
+
+inline op setattribute(invar PMC, in STR, invar PMC) :object_classes {
+    VTABLE_set_attr_str(interp, $1, $2, $3);
+}
+
+inline op setattribute(invar PMC, in PMC, in STR, invar PMC) :object_classes {
+    VTABLE_set_attr_keyed(interp, $1, $2, $3, $4);
+}
+
+###############################################################################
+
+=item B<inspect>(out PMC, in PMC)
+
+Sets $1 to a PMC hash of all introspection data available for $2, keyed on
+name.
+
+=item B<inspect>(out PMC, in PMC, in STR)
+
+Sets $1 to a PMC Hash, Array, String, Integer, or Number value with
+introspection information corresponding to the requested string name.
+
+=cut
+
+inline op inspect(out PMC, in PMC) :object_classes {
+    $1 = VTABLE_inspect(interp, $2);
+}
+
+inline op inspect(out PMC, in PMC, in STR) :object_classes {
+    $1 = VTABLE_inspect_str(interp, $2, $3);
+}
+
+=back
+
+=head1 COPYRIGHT
+
+Copyright (C) 2001-2009, Parrot Foundation.
+
+=head1 LICENSE
+
+This program is free software. It is subject to the same license
+as the Parrot interpreter itself.
+
+=cut
+
+/*
+ * Local variables:
+ *   c-file-style: "parrot"
+ * End:
+ * vim: expandtab shiftwidth=4:
+ */

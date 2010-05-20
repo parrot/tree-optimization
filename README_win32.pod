@@ -1,0 +1,246 @@
+# $Id$
+
+This file is best viewed with "perldoc README_win32".
+
+=head1 NAME
+
+README.win32 - Parrot under Windows
+
+=head1 SYNOPSIS
+
+These are instructions for building the "native" port of Parrot under
+Windows 2000/XP on the Intel x86 architecture.
+
+=head1 DESCRIPTION
+
+Win32 "native" ports require no additional software to run but the
+operating system.  There should be other READMEs for (emulation)
+systems that run on Win32, eg Cygwin.
+
+Native compilers include:
+
+       Borland C++ (bcc)                version xxx or later
+       Microsoft Visual C++ (cl)        version 13.10.3077 or later
+       MinGW32 with GCC (gcc)           version 3.4.2 or later
+       Intel C++ (icl)                  version 8.0.48 works
+
+=head2 Setting Up Parrot
+
+=over
+
+=item Make
+
+You need "nmake" to build Parrot under Windows with Microsoft compilers.  It
+should be available via Microsoft Visual Studio .NET 2003 or the Microsoft .NET
+Framework SDK 1.1.  Download the latter from the Microsoft .NET Framework
+Homepage L<http://msdn.microsoft.com/netframework/>.
+
+Note: Parrot will not build using nmake v1.5 from the MS web site.  Download
+one of the above toolkits to obtain a later version, either v7 or v8.
+
+MinGW works with its GNU "make" (v 3.81) port and its name is
+'mingw32-make.exe'.  If you also have the Minimal SYStem (MSYS) installed,
+you will need to remove the Msys/bin folder from your PATH environment
+variable before calling "perl Configure.pl" and mingw32-make.  Perl detects
+and calls /bin/sh.exe, if found, whenever shelling a new process.  sh.exe
+causes problems for mingw32-make.exe because of its inability to handle
+Windows pathnames with backslashes.  You must run "perl Configure.pl" and
+mingw32-make from a dosbox; running those commands from an MSYS shell window
+will experience the same backslash path problems.
+
+=item Command Shell
+
+The surest way to build it is on Windows NT/2000/XP, using the cmd shell.
+
+=item ICU
+
+Parrot no longer comes with its own ICU, thus you need to install it on your
+system if you want to use it.  Note that ICU is now optional, you can
+build Parrot without it, by not installing it or asking Parrot to
+ignore it (C<--without-icu>).
+
+If you want to use ICU, download it from
+L<http://site.icu-project.org/download>.
+
+If you want to use precompiled binaries, do the following.
+Download the package matching your compiler, unpack it (say, into
+C:\usr\lib), add the F<bin> directory to C<PATH>, and tell
+Configure.pl to use it.
+
+    mkdir C:\usr\lib
+    unzip icu4c-4_2_1-Win32-msvc9.zip -d C:\usr\lib
+    mkdir C:\usr\lib\data
+    set PATH=%PATH%;C:\usr\lib\icu\bin
+    cd <parrot directory>
+    perl Configure.pl
+        --icushared="C:\usr\lib\icu\lib\icudt.lib C:\usr\lib\icu\lib\icuuc.lib"
+        --icuheaders="C:\usr\lib\icu\include"
+
+Note the step of creating the F<C:\usr\lib\data> directory, as Parrot
+really wants it and the binary packages don't contain it.  It doesn't
+need to contain anything though, as the data is pulled in from
+F<lib/icudt.lib>, which contains the standard data in binary form.
+
+=item Optional libraries
+
+The availability of these libraries is checked by Configure.pl.
+
+B<gettext> - library and tools for native language support
+L<http://gnuwin32.sourceforge.net/>
+
+B<GMP> - GNU multiple precision arithmetic library
+L<http://developer.berlios.de/projects/win32gmp/>
+
+B<OpenGL> / B<GLUT> - Open Graphics Library
+L<http://www.xmission.com/~nate/glut.html> or
+L<http://www.transmissionzero.co.uk/computing/using-glut-with-mingw/>
+
+B<pcre> - Perl-Compatible Regular Expression library
+L<http://gnuwin32.sourceforge.net/>
+
+B<readline> - edit command lines
+L<http://gnuwin32.sourceforge.net/>
+
+=item Optional utilities
+
+The availability of these utilities is checked by Configure.pl
+or by some test.
+
+B<antlr> - ANother Tool for Language Recognition
+L<http://www.antlr.org/>
+
+B<ctags> - Exuberant Ctags
+L<http://ctags.sourceforge.net/>
+
+=item Inno Setup
+
+Inno Setup is a I<free> installer for Windows programs.
+
+The latest release of Inno Setup at the time of writing is 5.3.7.
+
+The HomePage is on L<http://www.jrsoftware.org/>.
+
+Add the directory to PATH.
+
+    set PATH=%PATH%;C:\Program Files\Inno Setup 5
+
+=item Borland C++
+
+XXX
+
+=item Microsoft Visual C++
+
+Since mid April 2004, Visual C++ comes in two flavors.  Microsoft
+Visual Studio .NET 2003 (L<http://msdn.microsoft.com/visualc/>), which
+includes the full blown IDE, and Microsoft Visual C++ Toolkit 2003
+(L<http://msdn.microsoft.com/visualc/vctoolkit2003/>), which is a free
+(but unsupported) package, containing only the basic compiler and
+linker stuff.
+
+If you use the Toolkit, be sure to follow the directions for setting up
+your build environment that come with the perl distributions. (README.win32
+in the latest perl distribution.) You may have to substitute "Microsoft
+Platform SDK" wherever "Microsoft SDK" is listed, depending on the your
+install. You can ignore the entries regarding "win32/config.vc", but be sure
+to create the "link.bat" batch file. Copy the missing files mentioned,
+run the Toolkit Command Prompt, set the appropriate env vars, and you
+should be fine. (For env vars, you can update them under My Computer->
+properties so they are available whenever you open a shell.)
+
+Note: It is possible to use ActiveState Perl with the Toolkit: you don't
+have to compile your own perl.
+
+=item Strawberry Perl
+
+With the Strawberry perl distro from
+L<http://strawberryperl.com/>, gcc is included. To build parrot,
+use the strawberry perl binary to run Configure.pl, and then
+follow the directions.
+
+=item MinGW32 with GCC
+
+The latest release of MinGW package at the time of writing is 5.1.6,
+which contains gcc-3.4.5 as current release.
+It can be downloaded here:
+L<http://sourceforge.net/projects/mingw/files/>
+
+The HomePage is on L<http://www.mingw.org/>.
+
+With the ActiveState Perl distribution, tell Configure.pl to use gcc :
+
+    perl Configure.pl
+         --cc=gcc
+         --icushared="C:\usr\lib\icu\lib\icudt.lib C:\usr\lib\icu\lib\icuuc.lib"
+         --icuheaders="C:\usr\lib\icu\include"
+or
+    perl Configure.pl --cc=gcc --without-icu
+
+=item Intel C++
+
+XXX
+
+=back
+
+=head2 Building
+
+    $MAKE
+
+=head2 Testing
+
+    $MAKE test
+
+=head2 Installation
+
+    $MAKE install
+
+=head2 Installer
+
+    $MAKE win32-inno-installer
+
+This command creates a setup-parrot-x.y.z.exe that contains all parrot install
+directories.
+
+=head2 Usage Hints
+
+    XXX
+
+=head1 BUGS AND CAVEATS
+
+=over
+
+=item Features
+
+Threads, Events, and Signals are missing.
+
+=back
+
+=head1 ACKNOWLEDGEMENTS
+
+XXX
+
+=head1 AUTHORS
+
+=over
+
+=item Ron Blaschke E<lt>ron@rblasch.orgE<gt>
+
+=item François Perrad  E<lt>francois.perrad@gadz.orgE<gt>
+
+=back
+
+This document is maintained by The Parrot Developers
+(E<lt>parrot-dev@lists.parrot.orgE<gt>).
+
+=head1 SEE ALSO
+
+    L<parrot>
+
+=head1 HISTORY
+
+This document borrows heavily from Perl's README.win32.
+
+GCC/mingw32 support was added in 0.1.2 (François Perrad).
+
+Last updated: 20 Jan 2009
+
+=cut

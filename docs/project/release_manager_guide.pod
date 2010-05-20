@@ -1,0 +1,407 @@
+# Copyright (C) 2007-2010, Parrot Foundation.
+# $Id$
+
+=head1 Release Instructions
+
+To prepare a release:
+
+=over 4
+
+=item 0.
+
+As soon as you become the release manager: review the goals for the release on
+the Parrot roadmap (L<https://trac.parrot.org/parrot/roadmap>) and
+announce the tasks to the Parrot mailing list.  Make sure everyone knows what
+they've committed to accomplish in time for the release.
+
+Right after the release preceeding your release, it is a good idea to start
+tracking parrot news in NEWS. A good resource are the reports
+in the weekly #parrotsketch IRC-meeting. A reliable log of these meetings
+is available in L<http://irclog.perlgeek.de/parrotsketch/>.
+
+A couple of weeks in advance: Ask people to run C<make fulltest> and
+report (and hopefully fix!) any problems they find. Check in with
+language project leads for release blockers, to allow time to fix them.
+Also ask people to review the tickets targeted for the upcoming release
+L<https://trac.parrot.org/parrot/roadmap>.
+
+Make sure your ssh key have been added to the FTP server ftp-osl.osuosl.org.
+Without the key you won't be able to ship the release.
+
+Set up your account on L<http://www.parrot.org/> and ask an previous release
+manager to provide you with editor privileges if you don't already have them.
+Any previous release manager should be able to help.
+
+A couple of days in advance: announce the new release to
+parrot-dev@lists.parrot.org and to the IRC channel #parrot. Ask whether
+there are any showstopping bugs. Check in again with the language
+project leads. It's also good to ask for updates to F<NEWS>, F<CREDITS>,
+F<PLATFORMS>, F<RESPONSIBLE_PARTIES>, F<DEPRECATED.pod> and
+L<https://trac.parrot.org/parrot/wiki/Languages>.
+
+On the Saturday before a release you should notify other developers to stop
+committing non-release related code to trunk.  This will help avoid
+complications. They are of course free to commit to branches as much as
+they like. You might also set the topic in #parrot, announcing the
+time when you plan on starting the release procedure. This will help
+the committers with timing their last minute commits.
+
+You might also select a name (and optionally a quote) for your release.
+For example, you could select a name from
+L<http://en.wikipedia.org/wiki/List_of_parrots>.
+
+=item 1.
+
+The day of the release has come.
+Make sure you're up to date:
+
+ $ svn update
+
+=item 2.
+
+Update files with version-specific information:
+
+=over 4
+
+=item a
+
+Increment the version number in the following files:
+F<VERSION>, F<MANIFEST.generated>, F<README>.
+
+Also update the version number, date, and your name in the
+the file: F<docs/parrothist.pod>.
+
+Update this file, that is F<release_manager_guide.pod>,
+to remove the pending release you're in the middle of.
+
+=item b
+
+Update F<ChangeLog>, F<NEWS> with the new version number and any other
+changes that have occurred since the last release: Hopefully these files
+are being updated as committers work. If not, it's probably a good idea
+to gather the updates weekly rather than waiting until the day of the
+monthly release.
+
+=item c
+
+Update release-related information in F<tools/util/release.json>. This will be
+used later when making release announcements.  There are a few essential
+fields that must be updated at each release:
+
+=over 4
+
+=item C<release.*>
+
+The date of the next release is in L<Appendix 1|"Appendix 1 - Upcoming releases">.
+
+=item C<bugday.date>
+
+Enter the date of the Saturday before the next release.
+
+=item C<wiki.bugday>
+
+Update the date part of the link to the wiki page for the next bugday.
+
+=item C<ftp.path>
+
+The URL of the FTP directory where the Parrot tarball can be found.
+
+=back
+
+=item d
+
+Make sure F<RESPONSIBLE_PARTIES> is still accurate.
+
+=item e
+
+Give yourself credit for the release in F<CREDITS>.
+
+=item f
+
+Configure parrot and run C<make distro_tests>, and either fix
+what those tests complain about, or fix them so they don't complain.
+
+=item g
+
+If this is a developer release, or there have been no new entries to the
+F<PBC_COMPAT> file, skip this step.
+
+If this is a supported release, and new entries to F<PBC_COMPAT> have been
+added since the last supported release, make a new entry with a new major
+version number for this release at the top of the list.
+
+  3.0     2007.10.17      coke    released 0.4.17
+
+Delete all minor version numbers since the last major bytecode version number,
+as these are only used in development and not relevant to the bytecode support
+policy. (Those changes are all included within the major version number
+increase for the supported release.)
+
+Once you've updated PBC_COMPAT, run C<sh tools/dev/mk_native_pbc> to update the
+pbc files used in the native pbc tests.  Note that you must have Parrot already
+built for this to work, and that this script will reconfigure and rebuild
+Parrot with various primitive size options.
+
+=item h
+
+Make sure everything works:
+
+ $ make realclean
+ $ perl Configure.pl --test ...
+ $ make world docs html 2>&1 | tee make_world_docs_html.log
+ $ make fulltest        2>&1 | tee make_fulltest.log
+
+Note that running "make fulltest" takes a while and that separate
+harnesses are being run.
+
+=back
+
+=item 3.
+
+When all is well, then commit your changes:
+
+ svn diff | more
+ svn commit
+
+Write down the revision number from this commit. You will need it later in
+step 7.
+
+=item 4.
+
+Prepare the release tarball.
+
+ $ make release VERSION=a.b.c
+
+where a.b.c is the version number. This will create the tarball named
+F<parrot-a.b.c.tar.gz>. This will automatically avoid including C<DEVELOPING>
+in the release tarball.
+
+=item 5.
+
+Untar F<parrot-a.b.c.tar.gz> into another area.
+
+=item 6.
+
+Make sure everything works:
+
+ $ perl Configure.pl
+ $ make world docs html 2>&1 | tee make_world_docs_html.log
+ $ make fulltest        2>&1 | tee make_fulltest.log
+
+Verify that the version is correct and doesn't contain the suffix C<devel>:
+
+ $ ./parrot -V
+
+=item 7.
+
+Tag the release as "RELEASE_a_b_c", where a.b.c is the version number.
+Specify the revision number generated in step 3, above.
+
+ $ export SVNPARROT=https://svn.parrot.org/parrot
+ $ svn copy -r <REV> -m "tagged release a.b.c" \
+   $SVNPARROT/trunk $SVNPARROT/tags/RELEASE_a_b_c
+
+=item 8.
+
+SSH to ftp-osl.osuosl.org. (If you don't have the necessary login information,
+get it from one of the previous release managers.)
+
+ $ ssh -l <USERNAME> ftp-osl.osuosl.org
+
+If the release is a monthly development release, create a new directory under
+F<~/ftp/releases/devel>.
+
+ $ mkdir ~/ftp/releases/devel/a.b.c
+
+If the release is in the supported series (L<Appendix 1 - Upcoming releases>)
+create the new directory in F<~/ftp/releases/supported> instead.
+
+ $ mkdir ~/ftp/releases/supported/a.b.c
+
+Copy the different compressed tarballs from your machine into the new directory.
+
+ $ scp parrot-a.b.c.tar.gz parrot-a.b.c.tar.bz2 \
+   <USERNAME>@ftp-osl.osuosl.org:~/ftp/releases/devel/a.b.c/.
+
+(Or using C<wget> or whatever tool you prefer.)
+
+When you're finished making changes, run the trigger script to push the changes
+out to the FTP mirrors.
+
+  ~/trigger-parrot
+
+Check your changes at F<ftp://ftp.parrot.org/pub/parrot/releases>. It should
+only take a few minutes for the mirrors to sync.
+
+=item 9.
+
+Compose the release announcement.  Use F<tools/util/crow.pir> to make
+this part easier.  You can specify the format of your announcements like so:
+
+  $ ./parrot tools/util/crow.pir --type=text
+  $ ./parrot tools/util/crow.pir --type=html
+
+Take the screen output and paste it into the application you need.  HTML
+works well for use Perl and PerlMonks, and text for the rest.  It is not a
+bad idea to add a "highlights" section to draw attention to major new
+features, just be sure to say the same thing in both text and HTML versions.
+
+=item 10.
+
+Update the website. You will need an account with editor rights
+on L<http://www.parrot.org>.
+
+=over 4
+
+=item a
+
+Add a new page for the release announcement with "Create content" -> "Story".
+There's some additional stuff needed at the top of the page; use one of the
+old announcements as a guide.
+
+The "<!--break-->" line marks the end of the text that will appear on the
+front page.
+
+=item b
+
+For the "News" category, select both "Releases" and "News".
+
+Add tags to the page for significant changes in this release (e.g. "rakudo" for
+significant Rakudo language updates, or "gc" for significant garbage collection
+subsystem updates).
+
+=item c
+
+Under "URL path settings" uncheck "Automatic alias" and set the path to
+news/[year]/Parrot-[release number].
+
+=item d
+
+Under "Publishing options" make sure "Published" and "Promoted to front page"
+are checked.
+
+=item e
+
+Under "Administer" -> "Site building" -> "URL Redirects", change the URL for
+"release/current" to the FTP file for the new release (for example,
+F<ftp://ftp.parrot.org/pub/parrot/releases/devel/0.8.1/parrot-0.8.1.tar.gz>).
+Also update the URL for "release/developer" or "release/supported" depending
+on which type of release this is.
+
+=item f
+
+Update docs.parrot.org. Run "make html" in a release copy of parrot, and save
+the resources/ and html/ directories created in docs/.
+ssh into the parrotvm, and in the
+webroot for docs.parrot.org, expand these into a release directory (e.g.
+1.4.0). in <webroot>/parrot, there are symbolic links for latest, supported,
+and devel. Update the latest symlink to point to your new directory.
+If this is a supported release, also update the supported symlink. Do not delete
+any old copies of the docs.
+
+=back
+
+Preview the new page, and submit it.
+
+(The old release announcement may be edited to uncheck "Promoted to front page"
+to keep the main page fresh.)
+
+=item 11.
+
+Publicize the release by publishing the announcement through the
+following channels (and any others you can think of):
+
+=over 4
+
+=item a
+
+Send a text email to parrot-dev, parrot-users, perl6-language, perl6-announce,
+perl5-porters, etc.  You should also include LWN.net in this mailing; email to
+C<lwn> at that domain.
+
+=item b
+
+Submit the use Perl announcement story to use Perl, Perl Monks, Slashdot,
+Newsforge, etc.  Don't forget to set a Reply-To: or Followup-To: header, if
+your mail client lets you.
+
+=item c
+
+Modify the topic on #parrot, e.g.:
+
+ /topic #parrot Parrot 0.4.8 Released | http://parrot.org/
+
+=item d
+
+Update the wiki frontpage at L<http://trac.parrot.org/parrot/>.
+
+=item e
+
+Update the Wikipedia entry at L<http://en.wikipedia.org/wiki/Parrot_virtual_machine>.
+
+=item f
+
+Update the C2 wiki entry at L<http://c2.com/cgi/wiki?ParrotCode>.
+
+=back
+
+=item 12.
+
+Review the milestone for the current release in Trac at
+L<https://trac.parrot.org/parrot/roadmap>. Close any completed
+release-related tickets. Edit the milestone to mark it as "Completed".
+Marking a milestone as completed will migrate all open tickets to a
+selected milestone (generally the next milestone). Non-critical tickets
+can have their milestone unset.
+
+=item 13.
+
+Add the version to Trac so new bug reports can be filed against your
+buggy code. L<https://trac.parrot.org/parrot/admin/ticket/versions>.
+
+Make the latest released version the default version for new reports.
+
+Remove any sufficiently old versions listed there.
+
+=item 14.
+
+You're done! Help yourself to a beer, cola, or other celebratory drink.
+
+=back
+
+=head2 ABOUT THIS DOCUMENT
+
+This document was written after a couple of subtly incorrectly assembled
+releases--usually when someone forgot to delete F<DEVELOPING> (which is now
+automated!), but at least once where the F<MANIFEST> check failed. The intent
+of this file is to document what must be done to release so that such mistakes
+won't happen again.
+
+=head1 SEE ALSO
+
+F<README>, F<RESPONSIBLE_PARTIES>.
+
+=head1 Appendix 1 - Upcoming releases
+
+To make a monthly release schedule possible, we spread the burden of
+releases across multiple release managers. Releases are scheduled for
+the 3rd Tuesday of each month.
+
+The starred releases are Parrot's quarterly supported releases, see
+F<docs/project/support_policy.pod>.
+
+The calendar of releases is available at the comp.lang.parrot google calendar,
+visible at
+L<http://www.google.com/calendar/render?cid=ldhctdamsgfg5a1cord52po9h8@group.calendar.google.com>.
+
+ - Jun 15, 2010 - 2.5  - gerd
+ - Jul 20, 2010 - 2.6* - coke
+ - Aug 17, 2010 - 2.7  - ??
+ - Sep 21, 2010 - 2.8  - gerd
+
+=cut
+
+__END__
+Local Variables:
+  fill-column:78
+End:

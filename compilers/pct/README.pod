@@ -1,0 +1,8 @@
+# $Id$
+
+=head1 Parrot Compiler Toolkit (PCT)
+
+This is an implementation of an abstract tree representation
+and compiler for Parrot. 
+
+=cut

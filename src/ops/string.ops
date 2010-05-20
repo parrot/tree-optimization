@@ -1,0 +1,621 @@
+/*
+ * $Id$
+** string.ops
+*/
+
+=head1 NAME
+
+string.ops - String Opcodes
+
+=head1 DESCRIPTION
+
+Operations that work on strings, whether constructing, modifying
+or examining them.
+
+=over 4
+
+=cut
+
+
+=item B<ord>(out INT, in STR)
+
+The codepoint in the current character set of the first character of string $2
+is returned in integer $1.
+If $2 is empty, an exception is thrown.
+
+=item B<ord>(out INT, in STR, in INT)
+
+The codepoint in the current character set of the character at integer index $3
+of string $2 is returned in integer $1.
+If $2 is empty, an exception is thrown.
+If $3 is greater than the length of $2, an exception is thrown.
+If $3 is less then zero but greater than the negative of the length of $2,
+counts backwards through $2, such that -1 is the last character,
+-2 is the second-to-last character, and so on.
+If $3 is less than the negative of the length of $2, an exception is thrown.
+
+=cut
+
+inline op ord(out INT, in STR) :base_core {
+    $1 = string_ord(interp, $2, 0);
+}
+
+inline op ord(out INT, in STR, in INT) :base_core {
+    $1 = string_ord(interp, $2, $3);
+}
+
+
+=item B<chr>(out STR, in INT)
+
+The character specified by codepoint integer $2 is returned in string $1.
+
+=cut
+
+inline op chr(out STR, in INT) :base_core {
+    STRING * const s = string_chr(interp, (UINTVAL)$2);
+    $1 = s;
+}
+
+
+=item B<chopn>(out STR, in STR, in INT)
+
+Remove n characters specified by integer $3 from the tail of string $2,
+and returns the characters not chopped in string $1.
+If $3 is negative, cut the string after -$3 characters.
+
+=cut
+
+inline op chopn(out STR, in STR, in INT) :base_core {
+    $1 = Parrot_str_chopn(interp, $2, $3);
+}
+
+
+=item B<concat>(inout STR, in STR)
+
+=item B<concat>(invar PMC, in STR)
+
+=item B<concat>(invar PMC, invar PMC)
+
+Modify string $1 in place, appending string $2.
+
+=item B<concat>(out STR, in STR, in STR)
+
+=item B<concat>(invar PMC, invar PMC, in STR)
+
+=item B<concat>(invar PMC, invar PMC, invar PMC)
+
+Append string $3 to string $2 and place the result into string $1.
+
+=cut
+
+inline op concat(inout STR, in STR) :base_mem :deprecated {
+    $1 = Parrot_str_concat(interp, $1, $2);
+}
+
+inline op concat(invar PMC, invar PMC) :base_core {
+    VTABLE_i_concatenate(interp, $1, $2);
+}
+
+inline op concat(invar PMC, in STR) :base_core {
+    VTABLE_i_concatenate_str(interp, $1, $2);
+}
+
+inline op concat(out STR, in STR, in STR) :base_mem {
+    $1 = Parrot_str_concat(interp, $2, $3);
+}
+
+inline op concat(invar PMC, invar PMC, in STR) :base_core {
+    $1 = VTABLE_concatenate_str(interp, $2, $3, $1);
+}
+
+inline op concat(invar PMC, invar PMC, invar PMC) :base_core {
+    $1 = VTABLE_concatenate(interp, $2, $3, $1);
+}
+
+=item B<repeat>(out STR, in STR, in INT)
+
+=item B<repeat>(invar PMC, invar PMC, in INT)
+
+=item B<repeat>(invar PMC, invar PMC, invar PMC)
+
+Repeat string $2 integer $3 times and return result in string $1.
+The C<PMC> versions are MMD operations.
+
+=cut
+
+inline op repeat(out STR, in STR, in INT) :base_mem {
+    if ($3 < 0) {
+        opcode_t *handler = Parrot_ex_throw_from_op_args(interp, NULL,
+                EXCEPTION_NEG_REPEAT,
+                "Cannot repeat with negative arg");
+        goto ADDRESS(handler);
+    }
+    $1 = Parrot_str_repeat(interp, $2, (UINTVAL)$3);
+}
+
+inline op repeat(invar PMC, invar PMC, in INT) :base_core {
+    if ($3 < 0) {
+        opcode_t *handler = Parrot_ex_throw_from_op_args(interp, NULL,
+                EXCEPTION_NEG_REPEAT,
+                "Cannot repeat with negative arg");
+        goto ADDRESS(handler);
+    }
+    $1 = VTABLE_repeat_int(interp, $2, $3, $1);
+}
+
+inline op repeat(invar PMC, invar PMC, invar PMC) :base_core {
+    if (VTABLE_get_integer(interp, $3) < 0) {
+        opcode_t *handler = Parrot_ex_throw_from_op_args(interp, NULL,
+                EXCEPTION_NEG_REPEAT,
+                "Cannot repeat with negative arg");
+        goto ADDRESS(handler);
+    }
+    $1 = VTABLE_repeat(interp, $2, $3, $1);
+}
+
+=item B<repeat>(invar PMC, in INT)
+
+=item B<repeat>(invar PMC, invar PMC)
+
+Repeat string $1 number $2 times and return result in string $1.
+The C<PMC> versions are MMD operations.
+
+=cut
+
+inline op repeat(invar PMC, in INT) :base_core {
+    VTABLE_i_repeat_int(interp, $1, $2);
+}
+
+inline op repeat(invar PMC, invar PMC) :base_core {
+    VTABLE_i_repeat(interp, $1, $2);
+}
+
+
+=item B<length>(out INT, in STR)
+
+Calculate the length (in characters) of string $2 and return as integer $1.
+If $2 is NULL or zero length, zero is returned.
+
+=item B<bytelength>(out INT, in STR)
+
+Calculate the length (in bytes) of string $2 and return as integer $1.
+If $2 is NULL or zero length, zero is returned.
+
+=cut
+
+inline op length(out INT, in STR) :base_mem {
+    $1 = Parrot_str_length(interp, $2);
+}
+
+inline op bytelength(out INT, in STR) :base_mem {
+    $1 = Parrot_str_byte_length(interp, $2);
+}
+
+
+=item B<pin>(inout STR)
+
+Make the memory in string $1 immobile. This memory will I<not> be moved
+by the Garbage Collector, and may be safely passed to external libraries.
+(Well, as long as they don't free it) Pinning a string will move the contents.
+
+$1 should be unpinned if it is used after pinning is no longer necessary.
+
+=cut
+
+op pin(inout STR) :base_mem {
+    Parrot_str_pin(interp, $1);
+}
+
+
+=item B<unpin>(inout STR)
+
+Make the memory in string $1 movable again.
+This will make the memory in $1 move.
+
+=cut
+
+op unpin(inout STR) :base_mem {
+    Parrot_str_unpin(interp, $1);
+}
+
+
+=item B<substr>(out STR, in STR, in INT)
+
+=item B<substr>(out STR, in STR, in INT, in INT)
+
+=item B<substr>(out STR, invar PMC, in INT, in INT)
+
+Set $1 to the portion of $2 starting at (zero-based) character position
+$3 and having length $4. If no length ($4) is provided, it is equivalent to
+passing in the length of $2.
+
+=item B<replace>(out STR, in STR, in INT, in INT, in STR)
+
+Replace part of $2 starting from $3 of length $4 with $5. If the length of $5 is
+different from the length specified in $4, then $2 will grow or shrink
+accordingly. If $3 is one character position larger than the length of
+$2, then $5 is appended to $2 (and the empty string is returned);
+this is essentially the same as
+
+  concat $2, $5
+
+Finally, if $3 is negative, then it is taken to count backwards from
+the end of the string (ie an offset of -1 corresponds to the last
+character).
+
+New $1 string returned.
+
+=cut
+
+inline op substr(out STR, in STR, in INT) :base_core {
+    const INTVAL len = Parrot_str_byte_length(interp, $2);
+    $1 = Parrot_str_substr(interp, $2, $3, len);
+}
+
+inline op substr(out STR, in STR, in INT, in INT) :base_core {
+    $1 = Parrot_str_substr(interp, $2, $3, $4);
+}
+
+inline op substr(out STR, invar PMC, in INT, in INT) :base_core {
+    $1 = VTABLE_substr_str(interp, $2, $3, $4);
+}
+
+inline op replace(out STR, in STR, in INT, in INT, in STR) :base_core {
+    $1 = Parrot_str_replace(interp, $2, $3, $4, $5);
+}
+
+
+=item B<index>(out INT, in STR, in STR)
+
+=item B<index>(out INT, in STR, in STR, in INT)
+
+The B<index> function searches for a substring within target string, but
+without the wildcard-like behavior of a full regular-expression pattern match.
+It returns the position of the first occurrence of substring $3
+in target string $2 at or after zero-based position $4.
+If $4 is omitted, B<index> starts searching from the beginning of the string.
+The return value is based at "0".
+If the string is null, or the substring is not found or is null,
+B<index> returns "-1".
+
+=cut
+
+inline op index(out INT, in STR, in STR) :base_core {
+    $1 = ($2 && $3) ? Parrot_str_find_index(interp, $2, $3, 0) : -1;
+}
+
+inline op index(out INT, in STR, in STR, in INT) :base_core {
+    $1 = ($2 && $3) ? Parrot_str_find_index(interp, $2, $3, $4) : -1;
+}
+
+
+=item B<sprintf>(out STR, in STR, invar PMC)
+
+=item B<sprintf>(out PMC, invar PMC, invar PMC)
+
+Sets $1 to the result of calling C<Parrot_psprintf> with the
+given format ($2) and arguments ($3, which should be an ordered
+aggregate PMC).
+
+The result is quite similar to using the system C<sprintf>, but is
+protected against buffer overflows and the like.  There are some
+differences, especially concerning sizes (which are largely ignored);
+see F<misc.c> for details.
+
+=cut
+
+inline op sprintf(out STR, in STR, invar PMC) :base_core {
+    $1=Parrot_psprintf(interp, $2, $3);
+}
+
+inline op sprintf(out PMC, invar PMC, invar PMC) :base_core {
+    VTABLE_set_string_native(interp, $1,
+        Parrot_psprintf(interp, VTABLE_get_string(interp, $2), $3));
+}
+
+
+=item B<new>(out STR)
+
+=item B<new>(out STR, in INT)
+
+Allocate a new empty string of length $2 (optional).
+
+=cut
+
+inline op new(out STR) :base_mem {
+    $1 = Parrot_str_new_noinit(interp, enum_stringrep_one, 0);
+}
+
+inline op new(out STR, in INT) :base_mem {
+    $1 = Parrot_str_new_noinit(interp, enum_stringrep_one, $2);
+}
+
+
+=item B<stringinfo>(out INT, in STR, in INT)
+
+Extract some information about string $2 and store it in $1.
+If a null string is passed, $1 is always set to 0.
+If an invalid $3 is passed, an exception is thrown.
+Possible values for $3 are:
+
+=over 4
+
+=item 1 The location of the string buffer header.
+
+=item 2 The location of the start of the string.
+
+=item 3 The length of the string buffer (in bytes).
+
+=item 4 The flags attached to the string (if any).
+
+=item 5 The amount of the string buffer used (in bytes).
+
+=item 6 The length of the string (in characters).
+
+=back
+
+=cut
+
+inline op stringinfo(out INT, in STR, in INT) :base_core {
+    if ($2 == NULL)
+        $1 = 0;
+    else {
+        switch ($3) {
+          case STRINGINFO_HEADER:
+            $1 = PTR2UINTVAL($2);
+            break;
+          case STRINGINFO_STRSTART:
+            $1 = PTR2UINTVAL($2->strstart);
+            break;
+          case STRINGINFO_BUFLEN:
+            $1 = Buffer_buflen($2);
+            break;
+          case STRINGINFO_FLAGS:
+            $1 = PObj_get_FLAGS($2);
+            break;
+          case STRINGINFO_BUFUSED:
+            $1 = $2->bufused;
+            break;
+          case STRINGINFO_STRLEN:
+            $1 = $2->strlen;
+            break;
+          default:
+            {
+                opcode_t *handler = Parrot_ex_throw_from_op_args(interp, NULL,
+                    EXCEPTION_INVALID_OPERATION,
+                    "stringinfo: unknown info type: %d", $3);
+                goto ADDRESS(handler);
+            }
+        }
+    }
+}
+
+
+=item B<upcase>(out STR, in STR)
+
+Uppercase $2 and put the result in $1
+
+=cut
+
+inline op upcase(out STR, in STR) :base_core {
+    $1 = Parrot_str_upcase(interp, $2);
+}
+
+=item B<downcase>(out STR, in STR)
+
+Downcase $2 and put the result in $1
+
+=cut
+
+inline op downcase(out STR, in STR) :base_core {
+    $1 = Parrot_str_downcase(interp, $2);
+}
+
+=item B<titlecase>(out STR, in STR)
+
+Titlecase $2 and put the result in $1
+
+=cut
+
+inline op titlecase(out STR, in STR) :base_core {
+    $1 = Parrot_str_titlecase(interp, $2);
+}
+
+
+=item B<join>(out STR, in STR, invar PMC)
+
+Create a new string $1 by joining array elements from array $3
+with string $2.
+
+=item B<split>(out PMC, in STR, in STR)
+
+Create a new Array PMC $1 by splitting the string $3 into pieces
+delimited by the string $2. If $2 does not appear in $3, then return $3
+as the sole element of the Array PMC. Will return empty strings for
+delimiters at the beginning and end of $3
+
+Note: the string $2 is just a string. If you want a perl-ish split
+on regular expression, use C<PGE::Util>'s split from the standard library.
+
+=cut
+
+op join(out STR, in STR, invar PMC) :base_core {
+    $1 = Parrot_str_join(interp, $2, $3);
+}
+
+op split(out PMC, in STR, in STR) :base_core {
+    $1 = Parrot_str_split(interp, $2, $3);
+}
+
+
+=item B<charset>(out INT, in STR)
+
+Return the charset number $1 of string $2.
+
+=item B<charsetname>(out STR, in INT)
+
+Return the name $1 of charset number $2.
+If charset number $2 is not found, name $1 is set to null.
+
+=item B<find_charset>(out INT, in STR)
+
+Return the charset number of the charset named $2. If the charset doesn't
+exist, throw an exception.
+
+=item B<trans_charset>(out STR, in STR, in INT)
+
+Create a string $1 from $2 with the specified charset.
+
+Both functions may throw an exception on information loss.
+
+=cut
+
+op charset(out INT, in STR) :base_core {
+    $1 = Parrot_charset_number_of_str(interp, $2);
+}
+
+op charsetname(out STR, in INT) :base_core {
+    $1 = Parrot_charset_name(interp, $2);
+}
+
+op find_charset(out INT, in STR) :base_core {
+    const INTVAL n = Parrot_charset_number(interp, $2);
+    if (n < 0) {
+        opcode_t *handler = Parrot_ex_throw_from_op_args(interp, NULL,
+                EXCEPTION_INVALID_CHARTYPE,
+                "charset '%Ss' not found", $2);
+        goto ADDRESS(handler);
+    }
+    $1 = n;
+}
+
+op trans_charset(out STR, in STR, in INT) {
+    $1 = Parrot_str_change_charset(interp, $2, $3);
+}
+
+
+=item B<encoding>(out INT, in STR)
+
+Return the encoding number $1 of string $2.
+
+=item B<encodingname>(out STR, in INT)
+
+Return the name $1 of encoding number $2.
+If encoding number $2 is not found, name $1 is set to null.
+
+=item B<find_encoding>(out INT, in STR)
+
+Return the encoding number of the encoding named $2. If the encoding doesn't
+exist, throw an exception.
+
+=item B<trans_encoding>(out STR, in STR, in INT)
+
+Create a string $1 from $2 with the specified encoding.
+
+Both functions may throw an exception on information loss.
+
+=cut
+
+op encoding(out INT, in STR) :base_core {
+    $1 = Parrot_encoding_number_of_str(interp, $2);
+}
+
+op encodingname(out STR, in INT) :base_core {
+    $1 = Parrot_encoding_name(interp, $2);
+}
+
+op find_encoding(out INT, in STR) :base_core {
+    const INTVAL n = Parrot_encoding_number(interp, $2);
+    if (n < 0) {
+        opcode_t *handler = Parrot_ex_throw_from_op_args(interp, NULL,
+                EXCEPTION_INVALID_ENCODING,
+                "encoding '%Ss' not found", $2);
+        goto ADDRESS(handler);
+    }
+    $1 = n;
+}
+
+op trans_encoding(out STR, in STR, in INT) {
+    $1 = Parrot_str_change_encoding(interp, $2, $3);
+}
+
+
+=item B<is_cclass>(out INT, in INT, in STR, in INT)
+
+Set $1 to 1 if the codepoint of $3 at position $4 is in
+the character class(es) given by $2.
+
+=cut
+
+inline op is_cclass(out INT, in INT, in STR, in INT) {
+    $1 = Parrot_str_is_cclass(interp, $2, $3, $4);
+}
+
+
+=item B<find_cclass>(out INT, in INT, in STR, in INT, in INT)
+
+Set $1 to the offset of the first codepoint matching
+the character class(es) given by $2 in string $3, starting
+at offset $4 for up to $5 codepoints.  If no matching
+character is found, set $1 to (offset + count).
+
+=cut
+
+inline op find_cclass(out INT, in INT, in STR, in INT, in INT) {
+    $1 = Parrot_str_find_cclass(interp, $2, $3, $4, $5);
+}
+
+
+=item B<find_not_cclass>(out INT, in INT, in STR, in INT, in INT)
+
+Set $1 to the offset of the first codepoint not matching
+the character class(es) given by $2 in string $3, starting
+at offset $4 for up to $5 codepoints.  If the substring
+consists entirely of matching characters, set $1 to (offset + count).
+
+=cut
+
+inline op find_not_cclass(out INT, in INT, in STR, in INT, in INT) {
+    $1 = Parrot_str_find_not_cclass(interp, $2, $3, $4, $5);
+}
+
+
+=item B<escape>(out STR, invar STR)
+
+Escape all non-ascii chars to backslashed escape sequences. A
+string with charset I<ascii> is created as result.
+
+=item B<compose>(out STR, in STR)
+
+Compose (normalize) a string.
+
+=cut
+
+op escape(out STR, invar STR) {
+    $1 = Parrot_str_escape(interp, $2);
+}
+
+op compose(out STR, in STR) {
+    $1 = Parrot_str_compose(interp, $2);
+}
+
+
+=back
+
+=head1 COPYRIGHT
+
+Copyright (C) 2001-2010, Parrot Foundation.
+
+=head1 LICENSE
+
+This program is free software. It is subject to the same license
+as the Parrot interpreter itself.
+
+=cut
+
+/*
+ * Local variables:
+ *   c-file-style: "parrot"
+ * End:
+ * vim: expandtab shiftwidth=4:
+ */

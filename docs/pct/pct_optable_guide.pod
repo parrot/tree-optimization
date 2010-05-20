@@ -1,0 +1,455 @@
+# Copyright (C) 2008, Parrot Foundation.
+# $Id$
+
+=head1 NAME
+
+pct_optable_guide.pod - A Guide to Using an Operator Parsing Table in PGE-based grammars.
+
+=head1 DESCRIPTION
+
+This document describes how to use an operator parsing table in grammars
+written for the Parrot Grammar Engine. The C<mk_language_shell.pl> script
+will generate a very simple grammar that already includes an operator
+table. This document may help you to understand the syntax of defining
+an optable.
+
+=head1 WHY AN OPTABLE?
+
+Even in simple languages such as C<languages/abc>, parse trees can become very
+big for even very simple expressions.
+
+Consider the following example grammar:
+
+ token addop { '+' | '-' }
+ token mulop { '*' | '/' }
+
+ rule expression {
+    <mulexpr> [<addop> <mulexpr>]*
+ }
+
+ rule mulexpr {
+    <primary> [<mulop> <primary>]*
+ }
+
+ rule primary {
+    | <integer>
+    ...
+ }
+
+
+An expression such as C<1 + 2> will result in a parse tree like this:
+
+ expression
+   mulexpr
+      primary
+         integer
+            1
+   addop
+      +
+   mulexpr
+      primary
+         integer
+            2
+
+This may not seem very big, but remember it's only for C<1 + 2>!
+Also note that you have to add at least one rule per precedence level,
+so the rules for parsing simple statements can increase the size of
+your grammar dramatically.
+
+In order to prevent very big parse trees (which is rather inefficient),
+it's much better to do bottom-up parsing for expressions such as these.
+
+
+=head1 HOW TO USE AN OPTABLE?
+
+Perl 6 rules are run as ordinary subroutines (well, in fact, they are
+C<methods> of the class representing the grammar you're writing), and
+parsing will be done by invoking a rule's subrules. A subrule can also
+contain subrules. Therefore, the generated parser is a top-down parser,
+starting at the C<TOP> rule, and invoking rules that represent I<lower>
+parts of the grammar.
+
+=head2 Switching Top-down and Bottom-up parsing
+
+An optable parses operators bottom-up, which is the other well-known
+parsing approach, implemented popular parser generators such as Yacc.
+At some point, when using an optable, your parser must switch from
+top-down parsing to bottom-up, and after parsing the operators (and
+related operands), the parser switches back from bottom-up to top-down
+again.
+
+Bottom up parsing is very well suited for expressions that consist of
+terms, unary and binary operators with no two terms in a row.
+
+In order to define the entry point of the bottom-up, operator parsing
+table, you should define a rule. Below is an example that states that
+an C<expression> is parsed by the operator parser:
+
+ rule expression is optable { ... }
+
+The C<{ ... }> is legal Perl 6 syntax. See C<Synopsis 6: subroutines>
+for details.
+
+In order to define what an operand is, a special rule is define, named
+C<term:>.
+
+ proto 'term:' is tighter('infix:*')
+               is parsed(&simple_expression) { ... }
+
+This rule states that whenever an operand is expected, it is parsed by
+the rule named C<simple_expression>. In other words, this is the point
+where the parser switches back from bottom-up to top-down.
+
+Be sure to add the C<tighter> clause, to make sure that your I<terms>
+are parsed correctly. The grammar compiler (PGE) will not notify you
+if you don't do this.
+
+=head2 Defining operators
+
+In between these two rules defining the entry point and the I<exit> point
+of the operator parser, operators are declared, along with their
+precedence. This typically look as follows:
+
+ proto 'infix:+' is looser('infix:*') { ... }
+
+This defines the symbol C<+> as an C<infix> operator. The C<is looser>
+specification defines the precedence of the C<+> operator in relation
+to the C<*> operator.
+
+=head3 Operator precedence
+
+Operator precedence can be expressed using the following traits:
+
+=over 4
+
+=item * looser( OP )
+
+States that the precedence of the current operator being defined is looser
+than C<op>.
+
+=item * equiv( OP )
+
+States that the precedence of the current operator being defined is equal
+to the precedence of operator C<OP>.
+
+=item * tighter( OP )
+
+States that the precedence of the current operator being defined is
+tighter than the precedence of the operator C<OP>.
+
+=back
+
+Be sure that C<OP> is defined I<before> referencing it in a operator
+precedence statement as discussed in this section.
+
+=head3 Where's the operator?
+
+In Perl 6, operators are just subroutines with special names and scoping
+(see C<Synopsis 6: subroutines>).
+
+When operators such as C<infix:+> are defined, the bottom-up parser will
+generate a C<call> instruction to a subroutine with the same name, that is,
+C<infix:+>. Therefore, you need to write a subroutine for each operator
+you define. The subroutine for the C<infix:+> operator could look like this:
+
+=begin PIR_INVALID
+
+ .sub 'infix:+'
+    .param pmc a      # left operand
+    .param pmc b      # right operand
+    n_add $P0, a, b   # create a new PMC object with the value a+b
+    .return ($P0)
+ .end
+
+=end PIR_INVALID
+
+Whenever an expression such as C<42 + 1> is parsed, this will result in a
+call to C<infix:+> with the operands C<42> and C<1>. The C<infix:+> sub
+will create a new object, and assign the result of C<42 + 1> to it, after
+which this new object is returned. Note that the C<n_> prefix of the C<add>
+instruction implies that a new object is created.
+
+You might think that it's somewhat overkill to write and call a subroutine
+for such a simple operation, and that this could be done simpler. Well,
+you're right. If the implementation of the C<+> operator is as simple as
+in this case, there's a simpler way to implement the exact same behavior.
+This can be accomplished using a the C<pirop> trait, discussed below.
+
+=head3 Infix, prefix, postfix
+
+Besides C<infix> operators, operators can be C<prefix> or C<postfix>
+Operators can even be declared to be both C<prefix> and C<infix>. A common
+example is the C<-> operator. This is fine, because each operator has
+a certain precedence, which is kept track of by the bottom-up parser.
+
+In order to define a prefix C<++> operator, you could write this:
+
+ proto 'prefix:++' ... # specify precedence
+
+Besides these well-known mathematical operators, some languages have
+built-in operators with C<normal> names. For instance, Ruby defines
+an operator called C<defined?>, which queries its operand whether it
+is defined. Defining such special operators are not special in any way,
+just declared them as any other operator:
+
+ proto 'prefix:defined?' ...
+
+Note that C<defined?> is a prefix operator, which would look like this
+in code:
+
+ defined? $x
+
+=head3 Ternary operators
+
+Most languages only have one ternary operator: C<? :>. An example is shown
+below:
+
+ $income > 100000 ? print("I'm rich!") : print("I'll keep my job for now")
+
+To declare a ternary operator, you write:
+
+ proto ternary:<? :> is looser('infix:+') { ... }
+
+=head3 Circumfix operators
+
+Brackets can be considered operators as well. There are two types:
+
+=over 4
+
+=item * circumfix
+
+C<circumfix> operators can enclose other terms and operators. For instance
+many languages define a rule C<expression> similar to the following:
+
+ expression: literal
+           | identifier
+           | '(' expression ')'
+           | expression ['+'|'-'|...] expression
+
+When defining an operator table, the third alternative specifying a
+parenthesized expression can be expressed as follows:
+
+ proto circumfix:<( )> ...
+
+This means that operands (which are parsed through the special C<term:> rule)
+can be enclosed in parenthesis, like so:
+
+ (1 + 2) * 3
+
+This is legal, because the C<( )> is just another operator handled by the
+operator table.
+
+=item * postcircumfix
+
+Postcircumfix brackets are useful for subroutine invocation or indexing. Of
+course, this fully depends on the specification of your language. Sometimes,
+you need a different rule to define subroutine invocation syntax. This is the
+case when arguments can be other objects than operands of normal operators
+(which, again, are defined by the C<term:> rule).
+
+An example to handle indexing (assuming the index is an operand as any other
+operator's operand) is this:
+
+ proto postcircumfix:<[ ]> ...
+
+which, given the following rules:
+
+ rule expression is optable { ... }
+
+ rule 'term:' (...) is parsed(&simple_expression) { ... }
+
+ rule simple_expression {
+    | <literal>
+    | <ident>
+ }
+
+allows us to write this:
+
+ foo["hello"]
+
+Here, C<"hello"> is a literal and C<foo> is an identifier.
+
+
+=back
+
+=head3 The C<assoc> trait
+
+Operators have a certain associacity. For instance, the C<+> operator
+is usually said to be C<left> associated, while the exponential operator
+(often written as C<^>) is usually C<right> associated. Consider this
+example:
+
+ 10 - 5 - 2
+
+Should this be parsed as:
+
+ ((10 - 5) - 2)  # 5-2=3
+
+or as:
+
+ (10 - (5 - 2))  # 10-3=7
+
+In other words, does the C<-> I<associate> with the left or right operand?
+According to standard rules, the C<-> operator is C<left> associated,
+which means the first option is correct.
+
+This associecity is expressed using the C<assoc> trait, like so:
+
+ proto 'infix:-' is assoc('left') ...
+
+If you don't specify the association, it defaults to C<left>. C<right>
+association works the other way around. In mathematics, the power operator
+is right associated.
+
+There is a third associacity in Perl 6. Generally a list (using the comma
+operator) is not nested at all:
+
+ 1, 2, 3, 4
+
+should neither be parsed as
+
+ (((1, 2), 3), 4)
+
+nor as
+
+ (1, (2, (3, 4)))
+
+You can achieve that with the C<is assoc('none')> trait.
+
+=head3 The C<pirop> trait
+
+Some operators can be perfectly mapped to a specific Parrot instruction,
+for instance the C<n_add> op that we introduced earlier. By default, an
+operator is implemented as a subroutine call, which is obviously not as
+efficient as a single Parrot instruction. Therefore, you can specify the
+Parrot instruction using the C<pirop> trait. You can do this as follows:
+
+ proto 'infix:+' ... is pirop('n_add') { ... }
+
+This will not work for all Parrot ops, though. Certain instructions
+leave their result in an C<I> register (one of the four types of Parrot
+registers). PCT currently only supports PMC registers (C<P> registers).
+Operators such as C<==> and C<!=> must therefore be implemented as
+subroutine calls.
+
+=head3 The C<pasttype> trait
+
+Some operators have behavior that can be implemented by certain C<PAST>
+nodes. For instance, many languages define the semantics of the C<and>
+operator to be the following:
+
+ A and B
+
+ 1 evaluate A
+ 2 if result(1) is false return false
+ 3 evaluate B
+ 4 return result(3)
+
+As soon as the result of A is found to be false, there is no need to
+evaluate B, as the final result can never be true (as this is the C<and>
+operator). So, C<B> is evaluated only if C<A> is true.
+
+This is very similar to the PAST::Op node with the C<if> C<:pasttype>:
+
+ if (A) {
+   B
+ }
+
+Therefore, an operator such as C<and> can be implemented as an C<if>
+statement. In order to specify that the C<and> operator must be handled
+as a C<PAST::Op( :pasttype('if') )> node, you can use the C<pasttype> trait,
+like so:
+
+ proto 'infix:and' ... is pasttype('if') { ... }
+
+The C<or> operator is similar to the semantics of a
+PAST::Op( :pasttype('unless') node:
+
+ A or B
+
+ 1 evaluate A
+ 2 if result(1) is true return true
+ 3 evaluate B
+ 4 return result(3)
+
+So, C<unless> A is true, evaluate B. Hence, the C<or> operator could
+be implemented like so:
+
+ proto 'infix:or' ... is pasttype('unless') { ... }
+
+=head3 Special characters
+
+Some operators, such as the shift operators contain the "<" or ">" character.
+As operators can be specified as, for instance, infix:<+>, defining an operator
+such as "<<" will make the rule parser (the parser generator) confused.
+
+You have two options. Either use quoted names for the operator subroutine names,
+like so:
+
+ proto 'infix:>>' is equiv('infix:<<') { ... }
+
+Or, use so-called French quotes to do this. This looks as follows:
+
+ proto infix:«>>»  is equiv(infix:«<<») { ... }
+
+
+=head1 FAQ
+
+=over 4
+
+=item * Why are some operators quoted and some not?
+
+That's a matter of taste. You can define the operator C<+> in various ways:
+
+ proto infix:+
+ proto infix:<+>
+ proto 'infix:+'
+
+Note that C<< 'infix:<+>' >> is not allowed.
+
+=item * I get an error message saying:
+
+ "Can only replace inside string or index after end of string"
+
+This error occurs if the operator table contains a misspelling somewhere. Make sure
+that operators containing the character "<" or ">" are quoted using French quotes
+(« and »), or quote the proto name, as in C<< 'infix:<' >>.
+The best solution to solve this is to comment out the whole table except for a
+single operator, and try to find the error using a binary search. Or, better yet,
+set up your operator table incrementally, while keeping tests passing.
+
+=item * Help! I defined my operator table, but some operators are not recognized.
+
+Be sure that there are no spelling errors. For instance, on first sight the following
+looks correct:
+
+ proto 'infix:-' is equal('infix:+') { ... }
+
+However, C<equal> is not a valid precedence specifier, it should be spelled as C<equiv>.
+The PGE will not warn you for such errors.
+
+=item * How many operator tables can I use in my language?
+
+{{ XXX I think one only? Anybody? }}
+
+=item * How does an optable parser work?
+
+If you really want to know, check out compiler literature.
+It's something with stacks and emitting instructions for operators with C<tighter>
+precedence (and their operands) first.
+
+=back
+
+=head1 SEE ALSO
+
+=over 4
+
+=item * L<docs\pct\gettingstarted.pod>
+
+=item * L<docs\pct\past_building_blocks.pod>
+
+=item * L<http://dev.perl.org/perl6/doc/design/syn/S06.html>
+
+=back
+
+=cut

@@ -1,0 +1,177 @@
+/*
+Copyright (C) 2001-2009, Parrot Foundation.
+$Id$
+
+=head1 NAME
+
+src/pmc/parrotlibrary.pmc - Dynamic Library
+
+=head1 DESCRIPTION
+
+Class for holding info about a dynamic library.
+
+Properties:
+
+    _filename               full path/file of lib
+    _ro                     true after init
+
+All ParrotLibrary PMCs are in interp->iglobals.
+
+When a dynamic library (pmc or ops) is loaded, the load function returns
+a ParrotLibrary PMC.
+
+=head2 Methods
+
+=over 4
+
+=cut
+
+*/
+
+#define PMC_dlhandle(x) ((Parrot_ParrotLibrary_attributes*)PMC_data(x))->dl_handle
+#define PMC_oplib_init(x) ((Parrot_ParrotLibrary_attributes*)PMC_data(x))->oplib_init
+
+/* HEADERIZER HFILE: none */
+/* HEADERIZER BEGIN: static */
+/* HEADERIZER END: static */
+
+pmclass ParrotLibrary auto_attrs provides library {
+    ATTR void * dl_handle;  /* DLL handle */
+    ATTR void * oplib_init; /* oplib init function */
+
+/*
+
+=item C<void init()>
+
+Initializes the library with a C<NULL> oplib init function.
+
+=cut
+
+*/
+
+    VTABLE void init() {
+        PObj_custom_destroy_SET(SELF);
+    }
+
+/*
+
+=item C<void destroy()>
+
+Destroys the library, closing the shared library.
+
+=cut
+
+*/
+
+    VTABLE void destroy() {
+        void *dl_handle = PMC_dlhandle(SELF);
+        if (dl_handle)
+            Parrot_dlclose(dl_handle);
+    }
+
+
+/*
+
+=item C<PMC *clone()>
+
+Creates and returns a clone of the library.
+
+=cut
+
+*/
+
+    VTABLE PMC *clone() {
+        PMC * const dest     = Parrot_pmc_new(INTERP, SELF->vtable->base_type);
+        PMC_oplib_init(dest) = PMC_oplib_init(SELF);
+        PMC_dlhandle(dest)   = PMC_dlhandle(SELF);
+
+        if (PMC_metadata(SELF))
+            PMC_metadata(dest) = VTABLE_clone(INTERP, PMC_metadata(SELF));
+
+        return dest;
+    }
+
+/*
+
+=item C<INTVAL get_bool()>
+
+Returns whether a library has been successfully loaded.
+
+=cut
+
+*/
+
+    VTABLE INTVAL get_bool() {
+        return (PMC_dlhandle(SELF) != NULL);
+    }
+
+/*
+
+=item C<STRING *get_string()>
+
+Returns the name of the loaded library.
+
+=cut
+
+*/
+
+    VTABLE STRING *get_string() {
+        STRING * const key  = CONST_STRING(INTERP, "_filename");
+        PMC    * const prop = VTABLE_getprop(INTERP, SELF, key);
+
+        return VTABLE_get_string(INTERP, prop);
+    }
+
+/*
+
+=item C<void *get_pointer()>
+
+Get the pointer to the shared library handle.
+
+=cut
+
+*/
+
+    VTABLE void *get_pointer() {
+        return PMC_dlhandle(SELF);
+    }
+
+/*
+
+=item C<void set_pointer(void *handle)>
+
+Set the pointer to the shared library handle.
+
+=cut
+
+*/
+
+    VTABLE void set_pointer(void *handle) {
+        PMC_dlhandle(SELF) = handle;
+    }
+}
+
+/*
+
+=back
+
+=head1 SEE ALSO
+
+    Date:    Mon, 29 Sep 2003 14:37:11 -0400 (EDT)
+    Subject: Library loading and initialization sequence
+    From:    Dan Sugalski
+
+=head1 HISTORY
+
+Initial version by leo 2003.10.12.
+
+=cut
+
+*/
+
+/*
+ * Local variables:
+ *   c-file-style: "parrot"
+ * End:
+ * vim: expandtab shiftwidth=4:
+ */

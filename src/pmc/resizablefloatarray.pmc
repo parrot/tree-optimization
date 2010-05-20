@@ -1,0 +1,276 @@
+/*
+Copyright (C) 2001-2008, Parrot Foundation.
+$Id$
+
+=head1 NAME
+
+src/pmc/resizablefloatarray.pmc - resizable array for floating point
+numbers only
+
+=head1 DESCRIPTION
+
+This class, C<ResizableFloatArray>, implements an array of resizable size,
+which stores FLOATVALs. It uses Float PMCs to do all necessary conversions.
+
+=head2 Functions
+
+=over 4
+
+=cut
+
+*/
+
+/* HEADERIZER HFILE: none */
+/* HEADERIZER BEGIN: static */
+/* HEADERIZER END: static */
+
+pmclass ResizableFloatArray extends FixedFloatArray auto_attrs provides array {
+    ATTR INTVAL resize_threshold; /* max size before array needs resizing */
+
+/*
+
+=item C<FLOATVAL get_number_keyed_int(INTVAL key)>
+
+Returns the floating-point value of the element at index C<key>.
+
+=cut
+
+*/
+
+    VTABLE FLOATVAL get_number_keyed_int(INTVAL key) {
+        FLOATVAL *float_array;
+        INTVAL    size;
+
+        if (key < 0)
+            Parrot_ex_throw_from_c_args(INTERP, NULL, EXCEPTION_OUT_OF_BOUNDS,
+                    "ResizableFloatArray: index out of bounds!");
+
+        GET_ATTR_size(INTERP, SELF, size);
+        if (key >= size)
+            return 0.0;
+
+        GET_ATTR_float_array(INTERP, SELF, float_array);
+        return float_array[key];
+    }
+
+/*
+
+=item C<void set_number_keyed_int(INTVAL key, FLOATVAL value)>
+
+Sets the floating-point value of the element at index C<key> to
+C<value>.
+
+=cut
+
+*/
+
+    VTABLE void set_number_keyed_int(INTVAL key, FLOATVAL value) {
+        FLOATVAL *float_array;
+        INTVAL    size;
+
+        if (key < 0)
+            Parrot_ex_throw_from_c_args(INTERP, NULL, EXCEPTION_OUT_OF_BOUNDS,
+                    "ResizableFloatArray: index out of bounds!");
+
+        GET_ATTR_size(INTERP, SELF, size);
+        if (key >= size)
+            SELF.set_integer_native(key+1);
+
+        GET_ATTR_float_array(INTERP, SELF, float_array);
+        float_array[key] = value;
+    }
+
+/*
+
+=item C<void set_integer_native(INTVAL size)>
+
+Resizes the array to C<size> elements.
+
+When growing, if the new size stays smaller than twice the old size,
+grow to twice the old size; otherwise, grow to the new size.
+
+When shrinking, if the new size is smaller than half the old size,
+shrink to one and half times the new size (which is less than or
+equal to three quarters of the old size).
+
+=cut
+
+*/
+
+    VTABLE void set_integer_native(INTVAL size) {
+        FLOATVAL *float_array;
+        INTVAL    resize_threshold;
+
+        if (size < 0)
+            Parrot_ex_throw_from_c_args(INTERP, NULL, EXCEPTION_OUT_OF_BOUNDS,
+                    "ResizableFloatArray: Can't resize to negative value!");
+
+        GET_ATTR_float_array(INTERP, SELF, float_array);
+        GET_ATTR_resize_threshold(INTERP, SELF, resize_threshold);
+        if (!float_array) {
+            /* empty - used fixed routine */
+            if (size < 8) {
+                SUPER(8);
+                SET_ATTR_size(INTERP, SELF, size);
+                SET_ATTR_resize_threshold(INTERP, SELF, 8);
+            }
+            else {
+                SUPER(size);
+                SET_ATTR_resize_threshold(INTERP, SELF, size);
+            }
+        }
+        else if (size <= resize_threshold){
+            /* we could shrink here if necessary */
+            SET_ATTR_size(INTERP, SELF, size);
+            return;
+        }
+        else {
+            INTVAL cur = resize_threshold;
+            if (cur < 8192)
+                cur = size < 2 * cur ? 2 * cur : size;
+            else {
+                INTVAL needed = size - cur;
+                cur          += needed + 4096;
+                cur          &= ~0xfff;
+            }
+            SET_ATTR_float_array(INTERP, SELF,
+                    mem_gc_realloc_n_typed(INTERP, float_array, cur, FLOATVAL));
+            SET_ATTR_size(INTERP, SELF, size);
+            SET_ATTR_resize_threshold(INTERP, SELF, cur);
+        }
+    }
+
+/*
+
+=item C<PMC *clone()>
+
+Creates and returns a copy of the array.
+
+=cut
+
+*/
+
+    VTABLE PMC *clone() {
+        INTVAL size;
+        PMC   *copy          = SUPER();
+
+        /* copy trimmed extra space */
+        GET_ATTR_size(INTERP, SELF, size);
+        SET_ATTR_resize_threshold(INTERP, copy, size);
+
+        return copy;
+    }
+
+/*
+
+=item C<void push_float(FLOATVAL value)>
+
+Adds C<value> to the end of the array.
+
+=cut
+
+*/
+
+    VTABLE void push_float(FLOATVAL value) {
+        INTVAL nextix = SELF.elements();
+        SELF.set_number_keyed_int(nextix, value);
+    }
+
+/*
+
+=item C<FLOATVAL pop_float()>
+
+Removes and returns the last element in the array.
+
+=cut
+
+*/
+
+    VTABLE FLOATVAL pop_float() {
+        FLOATVAL value;
+        INTVAL size;
+        GET_ATTR_size(INTERP, SELF, size);
+
+        if (size == 0)
+            Parrot_ex_throw_from_c_args(INTERP, NULL, EXCEPTION_OUT_OF_BOUNDS,
+                    "ResizableFloatArray: Can't pop from an empty array!");
+
+        value = SELF.get_number_keyed_int(size-1);
+        SELF.set_integer_native(size - 1);
+        return value;
+    }
+/*
+
+=item C<INTVAL shift_float()>
+
+Removes and returns an item from the start of the array.
+
+=cut
+
+*/
+
+    VTABLE FLOATVAL shift_float() {
+        FLOATVAL value, *float_array;
+        INTVAL size;
+
+        GET_ATTR_size(INTERP, SELF, size);
+
+        if (size == 0)
+            Parrot_ex_throw_from_c_args(INTERP, NULL, EXCEPTION_OUT_OF_BOUNDS,
+                    "ResizableFloatArray: Can't shift from an empty array!");
+
+        GET_ATTR_float_array(INTERP, SELF, float_array);
+        value             = float_array[0];
+        SET_ATTR_size(INTERP, SELF, --size);
+
+        mem_sys_memmove(float_array, float_array + 1, size * sizeof (FLOATVAL));
+        return value;
+    }
+
+/*
+
+=item C<void unshift_float(FLOATVAL value)>
+
+Add and integer to the start of the array.
+
+=cut
+
+*/
+
+    VTABLE void unshift_float(FLOATVAL value) {
+        INTVAL    size;
+        FLOATVAL *float_array;
+
+        GET_ATTR_size(INTERP, SELF, size);
+        SELF.set_integer_native(size + 1);
+        GET_ATTR_float_array(INTERP, SELF, float_array);
+        mem_sys_memmove(float_array + 1, float_array, size * sizeof (FLOATVAL));
+        float_array[0] = value;
+    }
+
+}
+
+/*
+
+=back
+
+=head1 SEE ALSO
+
+F<docs/pdds/pdd17_basic_types.pod>.
+
+=head1 HISTORY
+
+Initial version                  - Matt Fowles 2004-06-11
+Changed allocator to double size - Matt Fowles 2004-06-15
+moved available size to int_val2 - Matt Fowles 2005-07-22
+
+=cut
+
+*/
+
+/*
+ * Local variables:
+ *   c-file-style: "parrot"
+ * End:
+ * vim: expandtab shiftwidth=4:
+ */

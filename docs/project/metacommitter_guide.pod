@@ -1,0 +1,111 @@
+# Copyright (C) 2007-2009, Parrot Foundation.
+# $Id$
+
+=head1 Metacommitter Guide
+
+The procedure below describes how to manage the list of Parrot committers.
+
+See F<docs/project/roles_responsibilities.pod> for more details on the
+various roles in the Parrot project, including the Metacommitter role.
+
+=head2 Instructions the new committer must follow
+
+This procedure must be performed by the new committer before
+the Metacommitter can add commit rights.
+
+=over 4
+
+=item 1
+
+Create an account on L<https://trac.parrot.org/parrot>.
+
+=back
+
+You only need to create one account for both the "parrot" and
+"languages" repositories, though the Metacommitter will need to grant
+permissions to the two repositories separately.
+
+=head2 Instructions for the Metacommitter
+
+The new committer must perform the above procedure before
+the Metacommitter can add commit rights.
+
+=over 4
+
+=item 1
+
+Login to Trac at L<https://trac.parrot.org/parrot/>
+
+=item 2
+
+Navigate to the Admin -> Permissions page,
+L<https://trac.parrot.org/parrot/admin/general/perm>
+
+=item 3
+
+If the user is not already in the "developer" group (for access to
+administer tickets), enter the username in the "Add Subject to Group"
+box, and add them to the "developer" group.
+
+
+=item 4
+
+Navigate to the Admin -> Subversion Access page
+L<https://trac.parrot.org/parrot/admin/subversion/svnauthz> and select
+the "parrot_committers" group.
+
+=item 5
+
+Select the username from the "Add Group Member to parrot_committers"
+listbox, and click the "Add" button. (Note that the username won't
+appear in the drop box until they've been granted "developer"
+permissions.)
+
+=back
+
+Congratulate the new member publicly by sending an email to
+parrot-dev@lists.parrot.org, and copying the new committer.
+
+The steps for the "languages" repository and Trac instance are the same,
+except the URLs are L<https://trac.parrot.org/languages/...> and the
+committer group is "languages_committers".
+
+Note that commit messages from the new member will be automatically held
+pending list-admin approval.
+
+=head2 To manage the list of Metacommitters
+
+Only existing Metacommitters can perform this activity.
+
+=over 4
+
+=item 1
+
+Navigate to the Admin -> Permissions page
+L<https://trac.parrot.org/parrot/admin/general/perm> and add/remove
+"admin" users as desired.
+
+=back 
+
+=head2 To manage the list of Bug Admins.
+
+Only existing Metacommitters can perform this activity.
+
+=over 4
+
+=item 1
+
+Navigate to the Admin -> Permissions page
+L<https://trac.parrot.org/parrot/admin/general/perm> and add/remove
+"developer" users as desired.
+
+Verify that the username is the one the user intends to use to
+administer tickets. (Some bugadmins have multiple Trac accounts.)
+
+=back
+
+=head1 SEE ALSO
+
+F<docs/project/roles_responsibilities.pod>, F<RESPONSIBLE_PARTIES>
+
+=cut

@@ -1,0 +1,316 @@
+# Copyright (C) 2001-2005, Parrot Foundation.
+# $Id$
+
+=head1 NAME
+
+IMCC - operation
+
+=head1 VERSION
+
+=over 4
+
+=item 0.1 initial
+
+=item 0.2 uninitialized warning; optimizations
+
+=item 0.3 merged parsing.pod into this file.
+
+=back
+
+=head1 OVERVIEW
+
+This document describes the principles of IMCC operation.
+
+=head1 DESCRIPTION
+
+The main features of imcc are:
+
+=over 4
+
+=item Source file parsing
+
+=item Register allocation
+
+=item Optimization
+
+=item Code generation
+
+=item Running the code
+
+=back
+
+=head1 SOURCE FILE PARSING
+
+=head2 Overview
+
+IMCC parses and generates code in terms of I<compilation units>. These
+are self-contained blocks of code very similar to subroutines.
+
+Code for a compilation unit is created as soon (or not earlier) as the
+end of the unit is reached.
+
+{{ Is this true? one sub calling another not-yet compiled sub would
+   not work in that case. }}
+
+
+=head2 Symbols, constants and labels
+
+I<Compilation units> maintain their own symbol table containing local
+labels and variable symbols. This symbol table, C<hash>, is not visible
+to code in different units.
+
+If you need global variables, please use the B<get_{hll,root}_global> opcodes.
+
+Global labels and constants are kept in the global symbol table
+C<ghash>. This allows for global constant folding beyond the scope
+of individual subroutines.
+
+This also means that you currently can't use the same global symbol (e.g.
+subroutine name) in different namespaces. The following creates invalid code:
+
+=begin PIR
+
+  .sub main
+     #...
+  .end
+
+   .namespace ["main"]
+  .sub main
+     #...
+  .end
+
+=end PIR
+
+Local labels in different I<compilation units> with the same name are
+allowed, though assembling the generated PASM doesn't work. However,
+running this code inside imcc is ok. This will probably change in the
+future so that local labels are mangled to be unique.
+
+
+
+=head1 REGISTER ALLOCATION
+
+Register allocation is done per I<compilation unit>.
+
+IMCC I<identifiers> and I<temporary variables> e.g. $I0 are assigned a
+physical parrot register depending on the life range of these
+variables. If the life range of one variable doesn't overlap the range
+of another variable, they might get the same parrot register. For
+instance:
+
+=begin PIR_FRAGMENT
+
+   $I0 = 10
+   $I1 = 20
+
+=end PIR_FRAGMENT
+
+will translate to
+
+=begin PASM
+
+   set I0, 10
+   set I0, 20
+
+=end PASM
+
+provided that $I0 is not used after these lines. In this case, the
+assignment to $I0 is redundant and will be optimized away if IMCC is
+run with optimization level B<-O2>.
+
+I<PASM registers> keep their register. During the usage of a I<PASM
+register> this register will be not get assigned to. Therefore, they
+should be used only when absolutely necessary, and you should try to
+avoid using them within long pieces of code.
+
+=head2 Basic blocks
+
+To determine the life range of variables, the code gets separated into
+pieces, called B<basic block>s. A B<basic block> starts at a label,
+which can get jumped to, and ends at a branch instruction.
+
+=head2 Call graph
+
+All connections between the B<basic block>s are calculated. This allows
+for:
+
+=head2 Loop detection
+
+where the range and depth of loops is calculated.
+
+=head2 Life analysis
+
+Whenever an operand is marked as an B<OUT> argument, this
+operand starts with a new value. This means that at this point the
+life range of the symbol ends and a new life range is started, which
+allows the allocation of a different register to the same variable or
+the same register to a different variable.
+
+Variables used as B<IN> parameters must keep their parrot register
+over their usage range.
+
+When C<imcc> detects a register usage, where the first operation is
+using (reading) a register (and warnings are enabled), C<imcc> emits
+an appropriate message.
+
+Consider these two code snippets (block numbers are attached):
+
+=begin PIR
+
+  .sub main :main
+      $I0 = 0        # 0 initialized
+      if $I0 goto l1 # 0
+      $I1 = 1        # 1 init
+      goto l2        # 1
+  l1:                # 2
+      $I1 = 2        # 2 init
+  l2:                # 3
+      print $I0      # 3
+      print $I1      # 3 all paths leading here do init
+      print "\n"     # 3
+  .end
+
+=end PIR
+
+and:
+
+=begin PIR
+
+  .sub main :main
+      $I0 = 0         # 0 initialized
+      if $I0 goto l1  # 0 branch to bb 1 or 2
+      $I1 = 1         # 1 init only in block 1
+  l1:                 # 2
+      print $I0       # 2
+      print $I1       # 2 no init in code path from block 0
+      print "\n"      # 2
+  .end
+
+=end PIR
+
+The latter of these emits the warning:
+
+  warning:imcc:propagate_need: '$I1' might be used \
+  uninitialized in _main:7
+
+=head2 Interference graph
+
+Once the above information is calculated, the next step is to look at
+which variables interfere with which others. Non-interfering variables
+can be given the same parrot register.
+
+=head2 Register allocation
+
+C<imcc> then starts allocating registers according to a variable's
+score. Variables deeply nested inside loops have the highest score and
+get a parrot register first. Variables with a long life range (i.e.
+with many interferences) get allocated last.
+
+=head1 Optimization
+
+Optimizations are only done when enabled with the B<-O> switch. Please
+consult F<t/imcpasm/*.t> for examples. They occur between various
+stages and may be repeatedly done: e.g. after converting a conditional
+branch to an absolute one, unreachable code will be removed then,
+which might cause unused labels ...
+
+=head1 OPTIMIZATIONS WITH -O1
+
+=head2 Constant substitution
+
+Constant arguments to many ops are evaluated. Conditional branches
+with constant conditions are converted to unconditional branches.
+Integer arguments to float operations are converted to float operands.
+
+=head2 If-branch optimization
+
+A sequence of code:
+
+=begin PIR_FRAGMENT
+
+    .local pmc cond
+    # ...
+    if cond, L1
+    branch L2
+ L1:
+    # ...
+ L2:
+
+=end PIR_FRAGMENT
+
+will be converted to
+
+=begin PIR_FRAGMENT
+    
+    .local pmc cond
+    # ...
+    unless cond, L2
+    # ...
+ L2:
+
+=end PIR_FRAGMENT
+
+The same is done for other conditional branches B<gt>, B<ge>, B<eq>
+and their reverse meanings.
+
+=head2 Branches to branches
+
+Unconditional branch sequences get optimized to jumps to the final label.
+
+=head2 Unused labels
+
+Unreferenced labels are deleted.
+
+=head2 Dead code removal
+
+Code not reachable after an unconditional branch instruction and basic
+blocks that are not entered from somewhere get removed.
+
+=head1 OPTIMIZATIONS WITH -O2
+
+Note: These are currently experimental and might not do the Right
+Thing.
+
+=head2 Used LHS once
+
+For a sequence of code
+
+=begin PIR_FRAGMENT
+
+   $I0 = 10
+   $I1 = 20
+
+=end PIR_FRAGMENT
+
+where B<$I0> is not used again, the first assignment will be tossed,
+resulting in code like:
+
+=begin PASM
+
+   set I0, 20
+
+=end PASM
+
+=head2 Loop optimization
+
+Instructions which are invariant to a loop are pulled out of the loop
+and inserted in front of the loop entry.
+
+=head1 Code generation
+
+C<imcc> either generates PASM or else directly generates a PBC file for
+running with parrot.
+
+=head1 Running code
+
+Additionally the generated code can be run immediately inside imcc.
+All parrot runtime options like B<-R jit> or B<-t> are available.
+
+=head1 FILES
+
+F<imc.c>, F<cfg.c>, F<optimizer.c>, F<pbc.c>
+
+=head1 AUTHOR
+
+Leopold Toetsch <lt@toetsch.at>
+

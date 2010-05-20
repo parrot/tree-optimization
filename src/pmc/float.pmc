@@ -1,0 +1,545 @@
+/*
+Copyright (C) 2003-2009, Parrot Foundation.
+$Id$
+
+=head1 NAME
+
+src/pmc/float.pmc - Floating-point number
+
+=head1 DESCRIPTION
+
+C<Float> extends C<scalar> to provide floating-point number operations.
+
+=head2 Functions
+
+=over 4
+
+=cut
+
+*/
+
+/* HEADERIZER HFILE: none */
+/* HEADERIZER BEGIN: static */
+/* HEADERIZER END: static */
+
+pmclass Float extends scalar provides float provides scalar auto_attrs {
+    ATTR FLOATVAL fv;
+
+/*
+
+=item C<void init()>
+
+Initializes the number to zero.
+
+=cut
+
+*/
+
+    VTABLE void init() {
+        SET_ATTR_fv(INTERP, SELF, 0.0);
+    }
+
+/*
+
+=item C<PMC *clone()>
+
+Make an exact copy of this PMC.
+
+=cut
+
+*/
+
+    VTABLE PMC *clone() {
+        FLOATVAL fv;
+        PMC * const dest = Parrot_pmc_new(INTERP, SELF->vtable->base_type);
+        GET_ATTR_fv(INTERP, SELF, fv);
+        SET_ATTR_fv(INTERP, dest, fv);
+        return dest;
+    }
+
+/*
+
+=item C<FLOATVAL get_number()>
+
+Returns the value of the number.
+
+=cut
+
+*/
+
+    VTABLE FLOATVAL get_number() {
+        FLOATVAL fv;
+        GET_ATTR_fv(INTERP, SELF, fv);
+        return fv;
+    }
+
+/*
+
+=item C<INTVAL get_integer()>
+
+Returns an integer representation of the number (by casting).
+
+=cut
+
+*/
+
+    VTABLE INTVAL get_integer() {
+        /* two steps avoid casting warnings */
+        const FLOATVAL n = SELF.get_number();
+        return (INTVAL) n;
+    }
+
+/*
+
+=item C<INTVAL get_bool()>
+
+Evaluates the number as a boolean, i.e. it's true if it's not zero.
+
+=cut
+
+*/
+
+    VTABLE INTVAL get_bool() {
+        const FLOATVAL f = SELF.get_number();
+        return !FLOAT_IS_ZERO(f);
+    }
+
+/*
+
+=item C<STRING *get_string()>
+
+Returns a Parrot string representation of the number.
+
+=item C<STRING *get_repr()>
+
+=cut
+
+*/
+
+    VTABLE STRING *get_string() {
+        return Parrot_str_from_num(INTERP, SELF.get_number());
+    }
+
+    VTABLE STRING *get_repr() {
+        const FLOATVAL val      = SELF.get_number();
+        const double d          = fabs((double)val);
+        const char * const sign = val < 0 ? "-" : "";
+        return Parrot_sprintf_c(INTERP, "%s" FLOATVAL_FMT, sign, d);
+    }
+
+/*
+
+=item C<void set_integer_native(INTVAL value)>
+
+=item C<void set_bool(INTVAL value)>
+
+=cut
+
+*/
+
+    VTABLE void set_integer_native(INTVAL value) {
+        Parrot_pmc_reuse(INTERP, SELF, enum_class_Integer, 0);
+        SELF.set_integer_native(value);
+    }
+
+    VTABLE void set_bool(INTVAL value) {
+        Parrot_pmc_reuse(INTERP, SELF, enum_class_Boolean, 0);
+        SELF.set_bool(value);
+    }
+
+/*
+
+=item C<void set_number_native(FLOATVAL value)>
+
+Sets the value of the number to C<value>.
+
+=cut
+
+*/
+
+    VTABLE void set_number_native(FLOATVAL value) {
+        SET_ATTR_fv(INTERP, SELF, value);
+    }
+
+/*
+
+=item C<void set_string_native(STRING *value)>
+
+Sets the value of the number to the value of C<*value>.
+
+Note that this method morphs the number into a C<String>.
+
+=cut
+
+*/
+
+    VTABLE void set_string_native(STRING *value) {
+        Parrot_pmc_reuse(INTERP, SELF, enum_class_String, 0);
+        SELF.set_string_native(value);
+    }
+
+/*
+
+=item C<void set_pmc(PMC *value)>
+
+Sets the value of the number to the value in C<*value>.
+
+=cut
+
+*/
+
+    VTABLE void set_pmc(PMC *value) {
+        SET_ATTR_fv(INTERP, SELF, VTABLE_get_number(INTERP, value));
+    }
+
+
+/*
+
+=item C<PMC *neg(PMC *dest)>
+
+=item C<void i_neg()>
+
+Set C<dest> to the negated value of C<SELF>.
+
+=cut
+
+*/
+
+    VTABLE PMC *neg(PMC *dest) {
+        const FLOATVAL a = -SELF.get_number();
+
+        dest = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+
+        VTABLE_set_number_native(INTERP, dest, a);
+        return dest;
+    }
+
+    VTABLE void i_neg() {
+        const FLOATVAL a = -SELF.get_number();
+        VTABLE_set_number_native(INTERP, SELF, a);
+    }
+
+/*
+
+=item C<INTVAL is_equal(PMC *value)>
+
+The C<==> operation.
+
+=cut
+
+*/
+
+    MULTI INTVAL is_equal(Float value) {
+        return (INTVAL)(SELF.get_number() == VTABLE_get_number(INTERP, value));
+    }
+
+    MULTI INTVAL is_equal(DEFAULT *value) {
+        return (INTVAL)(SELF.get_number() == VTABLE_get_number(INTERP, value));
+    }
+
+    MULTI INTVAL is_equal_num(Float value) {
+        return (INTVAL)(SELF.get_number() == VTABLE_get_number(INTERP, value));
+    }
+
+    MULTI INTVAL is_equal_num(DEFAULT value) {
+        return (INTVAL)(SELF.get_number() == VTABLE_get_number(INTERP, value));
+    }
+
+/*
+
+=item C<INTVAL cmp(PMC *value)>
+
+The C<cmp> operation.
+
+=cut
+
+*/
+
+    MULTI INTVAL cmp(Float value) {
+        const FLOATVAL diff = SELF.get_number() - VTABLE_get_number(INTERP, value);
+        return diff > 0 ? 1 : diff < 0 ? -1 : 0;
+    }
+
+    MULTI INTVAL cmp(DEFAULT value) {
+        const FLOATVAL diff =
+                SELF.get_number() - VTABLE_get_number(INTERP, value);
+        return diff > 0 ? 1 : diff < 0 ? -1 : 0;
+    }
+
+/*
+
+=item C<INTVAL cmp_num(PMC *value)>
+
+Returns the result of comparing the number with C<*value>.
+
+=cut
+
+*/
+
+    MULTI INTVAL cmp_num(Float value) {
+        const FLOATVAL diff = SELF.get_number() - VTABLE_get_number(INTERP, value);
+        return diff > 0 ? 1 : diff < 0 ? -1 : 0;
+    }
+
+    MULTI INTVAL cmp_num(DEFAULT value) {
+        const FLOATVAL diff =
+                SELF.get_number() - VTABLE_get_number(INTERP, value);
+        return diff > 0 ? 1 : diff < 0 ? -1 : 0;
+    }
+
+/*
+
+=item C<void increment()>
+
+Increments the number.
+
+=cut
+
+*/
+
+    VTABLE void increment() {
+        FLOATVAL fv;
+        GET_ATTR_fv(INTERP, SELF, fv);
+        ++fv;
+        SET_ATTR_fv(INTERP, SELF, fv);
+    }
+
+/*
+
+=item C<void decrement()>
+
+Decrements the number.
+
+=cut
+
+*/
+
+    VTABLE void decrement() {
+        FLOATVAL fv;
+        GET_ATTR_fv(INTERP, SELF, fv);
+        --fv;
+        SET_ATTR_fv(INTERP, SELF, fv);
+    }
+/*
+
+=item C<PMC *absolute(PMC *dest)>
+
+=item C<void i_absolute()>
+
+Sets C<dest> to the absolute value of SELF.
+
+=cut
+
+*/
+
+    VTABLE PMC *absolute(PMC *dest) {
+        const FLOATVAL a = fabs(SELF.get_number());
+
+        dest = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+
+        VTABLE_set_number_native(INTERP, dest, a);
+        return dest;
+    }
+
+    VTABLE void i_absolute() {
+        const FLOATVAL a = fabs(SELF.get_number());
+        VTABLE_set_number_native(INTERP, SELF, a);
+    }
+
+/*
+
+=item C<void freeze(PMC *info)>
+
+Used to archive the number.
+
+=cut
+
+*/
+    VTABLE void freeze(PMC *info) {
+        SUPER(info);
+        VTABLE_push_float(INTERP, info, SELF.get_number());
+    }
+
+/*
+
+=item C<void thaw(PMC *info)>
+
+Used to unarchive the number.
+
+=cut
+
+*/
+    VTABLE void thaw(PMC *info) {
+        SUPER(info);
+        SET_ATTR_fv(INTERP, SELF, VTABLE_shift_float(INTERP, info));
+    }
+/*
+
+=back
+
+=head2 Methods
+
+=over 4
+
+=item C<METHOD PMC *acos()>
+
+=item C<METHOD PMC *asec()>
+
+=item C<METHOD PMC *asin()>
+
+=item C<METHOD PMC *cos()>
+
+=item C<METHOD PMC *cosh()>
+
+=item C<METHOD PMC *exp()>
+
+=item C<METHOD PMC *ln()>
+
+=item C<METHOD PMC *log10()>
+
+=item C<METHOD PMC *log2()>
+
+=item C<METHOD PMC *sec()>
+
+=item C<METHOD PMC *sech()>
+
+=item C<METHOD PMC *sin()>
+
+=item C<METHOD PMC *sinh()>
+
+=item C<METHOD PMC *tan()>
+
+=item C<METHOD PMC *tanh()>
+
+=item C<METHOD PMC *sqrt()>
+
+Return a new PMC of the type of C<SELF> with I<FUNC>(value) of SELF.
+
+=cut
+
+*/
+
+    METHOD acos() {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, acos(SELF.get_number()));
+        RETURN(PMC *d);
+    }
+
+    METHOD cos() {
+        PMC * const d  = Parrot_pmc_new(INTERP,
+                Parrot_get_ctx_HLL_type(INTERP, enum_class_Float));
+        SET_ATTR_fv(INTERP, d, cos(SELF.get_number()));
+        RETURN(PMC *d);
+    }
+
+    METHOD asec() {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, acos(1.0 / SELF.get_number()));
+        RETURN(PMC *d);
+    }
+
+    METHOD asin() {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, asin(SELF.get_number()));
+        RETURN(PMC *d);
+    }
+
+    METHOD atan() {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, atan(SELF.get_number()));
+        RETURN(PMC *d);
+    }
+
+    METHOD atan2(PMC *val) {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, atan2(SELF.get_number(), VTABLE_get_number(INTERP, val)));
+        RETURN(PMC *d);
+    }
+
+    METHOD cosh() {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, cosh(SELF.get_number()));
+        RETURN(PMC *d);
+    }
+
+    METHOD exp() {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, exp(SELF.get_number()));
+        RETURN(PMC *d);
+    }
+
+    METHOD ln() {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, log(SELF.get_number()));
+        RETURN(PMC *d);
+    }
+
+    METHOD log10() {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, log10(SELF.get_number()));
+        RETURN(PMC *d);
+    }
+
+    METHOD log2() {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, log(SELF.get_number()) / log(2.0));
+        RETURN(PMC *d);
+    }
+
+    METHOD sec() {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, 1.0 / cos(SELF.get_number()));
+        RETURN(PMC *d);
+    }
+
+    METHOD sech() {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, 1.0 / cosh(SELF.get_number()));
+        RETURN(PMC *d);
+    }
+
+    METHOD sin() {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, sin(SELF.get_number()));
+        RETURN(PMC *d);
+    }
+
+    METHOD sinh() {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, sinh(SELF.get_number()));
+        RETURN(PMC *d);
+    }
+
+    METHOD tan() {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, tan(SELF.get_number()));
+        RETURN(PMC *d);
+    }
+
+    METHOD tanh() {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, tanh(SELF.get_number()));
+        RETURN(PMC *d);
+    }
+
+    METHOD sqrt() {
+        PMC * const d  = Parrot_pmc_new(INTERP, VTABLE_type(INTERP, SELF));
+        SET_ATTR_fv(INTERP, d, sqrt(SELF.get_number()));
+        RETURN(PMC *d);
+    }
+}
+
+/*
+
+=back
+
+=cut
+
+*/
+
+/*
+ * Local variables:
+ *   c-file-style: "parrot"
+ * End:
+ * vim: expandtab shiftwidth=4:
+ */

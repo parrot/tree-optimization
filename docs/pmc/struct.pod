@@ -1,0 +1,319 @@
+# Copyright (C) 2001-2005, Parrot Foundation.
+# $Id$
+
+=head1 NAME
+
+Structures - Accessing C Structs from Parrot
+
+=head1 DESCRIPTION
+
+Parrot provides two PMC classes to deal with C structures. These are
+UnManagedStruct and ManagedStruct. The former has no allocated memory and is
+typically used to access structures returned by NCI calls, while the latter can
+be used to define a structure and pass it over to a C function - pointers to
+structures in both cases of course.
+
+=head1 Structure definition
+
+The Struct PMCs take an array of triples per structure element, either as
+initializer or with the B<assign> opcode to define the struct elements.
+
+=over 4
+
+=item Datatype
+
+The datatype is defined by constants declared in F<datatypes.pasm>.
+
+=item Array Size
+
+The second initializer item, if set to a value greater then 1, defines the
+struct element to consist of an array of the given data type.
+
+=item Byte Offset
+
+The third initializer is the byte offset of the data item in the structure.
+This entry can be 0 if packing of the structure is aligned to the item's sizes
+or the alignment is the item's size. Otherwise these offsets must be set
+correctly as Parrot doesn't know how your C compiler packs arbitrary data.
+Parrot only knows the size of each item.
+
+=back
+
+=head2 Alignment
+
+Parrot tries to do The Right Thing that is currently align items at their size.
+
+  struct {
+    char c;
+    int  i;
+  }
+
+The C<i> above is aligned at 4 (for i386 or such).
+
+=head2 Example
+
+The C structure
+
+  struct {
+    double d;
+    float  f;
+    int    i[4];
+    char  *s;
+  };
+
+can be declared with this initializer:
+
+=begin PIR_FRAGMENT_INVALID
+
+  new P2, 'ResizablePMCArray'
+  .include "datatypes.pasm"
+  push P2, .DATATYPE_DOUBLE
+  push P2, 0	# no array i.e. 1 element
+  push P2, 0	# calculate offset by just adding item size
+  push P2, .DATATYPE_FLOAT
+  push P2, 0
+  push P2, 0
+  push P2, .DATATYPE_INT
+  push P2, 4	# 4 elem array
+  push P2, 0
+  push P2, .DATATYPE_CSTR
+  push P2, 0
+  push P2, 0
+
+=end PIR_FRAGMENT_INVALID
+
+=head2 Named Structure Elements
+
+The initializer can be an OrderedHash PMC too. When all elements are defined in
+the correct order this can be used to define and access struct elements by name
+and by index:
+
+=begin PIR_FRAGMENT_INVALID
+
+  new P2, 'OrderedHash'
+  .include "datatypes.pasm"
+  set P2["d"], .DATATYPE_DOUBLE
+  push P2, 0	# no array i.e. 1 element
+  push P2, 0	# calculate offset by just adding item size
+  set P2["f"], .DATATYPE_FLOAT
+
+=end PIR_FRAGMENT_INVALID
+
+=head1 Size of a Structure
+
+For ManagedStruct (a new structure passed over to a C function) the storage for
+data items has to be allocated. This is done automatically, when the
+initializer is attached to the Struct PMC.
+
+The size can be obtained by:
+
+=begin PIR_FRAGMENT_INVALID
+
+  new P5, 'ManagedStruct', P2   # P2 be some initializer
+
+  set I0, P5	# allocated size
+
+=end PIR_FRAGMENT_INVALID
+
+=head1 Accessing Structure Items
+
+Setting or getting items is done by keyed access to the Struct PMC. The first
+key is the structure item, an optional second key can access the n-th array
+element.
+
+=head2 Example
+
+=begin PIR_FRAGMENT_INVALID
+
+  set P5[0], N0		# set d
+  set N0, P5[0]		# get d
+
+  set N0, P5["d"]       # get d if initializer is an OrderedHash
+
+  set P5[1], N1		# set f
+  set N1, P5[1]		# get f
+  set N1, P5["f"]       # get f if initializer is an OrderedHash
+
+  set P5[2;0], I2	# set i[0]
+  set I3, P5[2;3]	# get i[3]
+
+  set P5["i"; 2]        # set i[2] if initializer is an OrderedHash
+
+  set S0, P5[3]         # get string at *s
+  set S0, P5["s"]	# same
+
+=end PIR_FRAGMENT_INVALID
+
+=head2 Strings
+
+When passing a STRING to a structure that needs a 0-terminated C-string (char
+*s), then you have to provide the terminating NUL char in the string.
+
+  struct {
+    ...
+    char *s;
+  };
+
+=begin PIR_FRAGMENT_INVALID
+
+  set P5["s"], "a string\x0"
+
+=end PIR_FRAGMENT_INVALID
+
+Please also note, that the C function currently gets a pointer to string
+memory, so any code that might trigger GC should be avoided (or GC turned off).
+Passing constant strings like above is safe though.
+
+=begin PIR_FRAGMENT_INVALID
+
+  set P5["s"], S0  # S0 shouldn't move until function call
+
+=end PIR_FRAGMENT_INVALID
+
+=head2 Callback Functions in the C Library
+
+Given a C function that returns a structure containing a callback function like
+in this example:
+
+  static struct {
+      int (*f)(char *);
+  } t = {
+       call_back
+  };
+  return &t;
+
+The PASM would look like:
+
+=begin PASM_INVALID
+
+  push P2, .DATATYPE_FUNC_PTR
+  # attach function signature property to this type
+  set P1, P2[-1]
+  new P3, 'String'
+  set P3, "it"
+  setprop P1, "_signature", P3
+  push P2, 0
+  push P2, 0
+  # P5 is the return UnManagedStruct PMC
+  assign P5, P2
+  # now we get a callable NCI PMC
+  set P0, P5[0]
+  set S5, "hello call_back"
+  # call the call_back function
+  invoke
+
+=end PASM_INVALID
+
+=head2 Nested Structures or Pointers to Nested Structures
+
+Each contained structure needs its own UnManagedStruct initializer. The
+UnManagedStruct of the contained structures has to be attached to the structure
+type PMC as the property B<"_struct">.
+
+If a C function returns a pointer to this structure:
+
+  static struct xt {
+      char x;
+      struct yt {
+	  char i;
+	  int  j;
+      } _y;
+      char z;
+  } _x;
+
+... access to elements could look like:
+
+=begin PIR_FRAGMENT_INVALID
+
+  # the nested structure
+  new P3, 'OrderedHash'
+  set P3["i"], .DATATYPE_CHAR
+  push P3, 0
+  push P3, 0
+  set P3["j"], .DATATYPE_INT
+  push P3, 0
+  push P3, 0
+  new P4, 'UnManagedStruct', P3
+
+  # outer structure
+  new P2, 'OrderedHash'
+  set P2["x"], .DATATYPE_CHAR
+  push P2, 0
+  push P2, 0
+  set P2["_y"], .DATATYPE_STRUCT
+
+  # attach the unmanaged struct as property to the type PMC
+  set P1, P2[-1]		# last element
+  setprop P1, "_struct", P4
+  push P2, 0
+  push P2, 0
+  set P2["z"], .DATATYPE_CHAR
+  push P2, 0
+  push P2, 0
+
+  # attach struct initializer to return value in P5
+  assign P5, P2
+
+  # now access values
+  set I0, P5[0]		# x
+  set I0, P5[1;0] 	# _y.i
+  set I0, P5[1;1]       # _y.j
+  set I0, P5[2]		# z
+
+  # or by name
+  set I0, P5["x"]
+  set I0, P5["_y"; "i"]
+  set I0, P5["_y"; "j"]
+  set I0, P5["z"]
+
+=end PIR_FRAGMENT_INVALID
+
+If the structure has a pointer to another structure the datatype is:
+
+=begin PIR_INVALID
+
+  push P2, .DATATYPE_STRUCT_PTR
+
+=end PIR_INVALID
+
+=head1 Passing A Structure to a C function
+
+For a shared library B<libnci_test.so> (or whatever) and a C function
+
+  typedef struct _dfi_t {
+    double d;
+    float  f;
+    int    i[4];
+  } dfi_t;
+
+  int nci_ip(dfi_t *p) {}
+
+a pointer to the structure is passed with the B<p> signature char:
+
+=begin PIR
+
+  loadlib P1, "libnci_test"
+  dlfunc P0, P1, "nci_ip", "ip"
+  # P5 is ManagedStruct from above
+  invoke
+  # I5 is result
+
+=begin PIR
+
+=head1 BUGS
+
+Not all datatypes are implemented. Alignment is barely tested on different
+machines. Arrays of structures aren't handled yet. Passing nested structures to
+C isn't finished.
+
+=head1 FILES
+
+F<src/pmc/unmanagedstruct.pmc>, F<src/pmc/managedstruct.pmc>
+
+=head1 SEE ALSO
+
+F<docs/pdds/pdd03_calling_conventions.pod> F<t/pmc/nci.t>, F<src/nci_test.c>
+
+=head1 AUTHOR
+
+Leopold Toetsch <lt@toetsch.at>

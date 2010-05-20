@@ -1,0 +1,379 @@
+# Copyright (C) 2007, Parrot Foundation.
+# $Id$
+
+=head1 Cage Cleaner Guide
+
+From F<docs/project/roles_responsibilities.pod>:
+
+ Fixes failing tests, makes sure coding standards are implemented,
+ reviews documentation and examples. A class of tickets in the
+ tracking system (Trac) has been created for use by this
+ group. This is an entry level position, and viewed as a good way
+ to get familiar with parrot internals.
+
+=head1 Testing Parrot after making a code cleaning change
+
+To be really I<really> sure you're not breaking anything after doing code
+cleaning or attending to the newspaper at the bottom of our Parrot's cage
+here are is the process I (ptc) go through before committing a new change:
+
+  make realclean > make_realclean.out 2>&1
+  perl Configure.pl > perl_configure.out 2>&1
+  make buildtools_tests > buildtools_tests.out 2>&1
+  make test > make_test.out 2>&1
+
+Then I diff the C<*.out> files with copies of the C<*.out> files I made on a
+previous test run.  If the diffs show nothing nasty is happening, you can be
+more sure that you've not broken anything and can commit the change.  Then
+rename the C<*.out> files to something like C<*.out.old> so that you
+maintain reasonably up to date references for the diffs.
+
+This process should be put into a script and stored somewhere...
+
+=head1 Parrot Cage Cleaners high-level goals
+
+=head2 Smoke testing on many platforms with many compilers
+
+The more platforms we have, the more likely we are to find portability
+problems.  Parrot has to be the most portable thing we've created.
+
+More platforms also means more compilers.  Maybe your DEC compiler
+is more picky than gcc, and spews more warnings.  Good!  More
+opportunities for cleaning!
+
+=head3 icc
+
+C<icc> is the Intel C/C++ Compiler and is available for free for
+non-commercial use.  To use C<icc> to build parrot, use the following
+arguments to C<Configure.pl>:
+
+  perl Configure.pl --cc=icc --ld=icc
+
+(courtesy of Steve Peters, C<steve at fisharerojo dot org>).
+
+=head2 Compiler pickiness
+
+Use as many compiler warnings as we possibly can.  The more warnings
+we enable, the less likely something will pass the watchful eye of
+the compiler.
+
+Note that warnings may not just be -W flags.  Some warnings in gcc
+only show up when optimization is enabled.
+
+=head2 splint
+
+Splint (L<http://www.splint.org>) is a very very picky lint tool, and
+setup and configuration is a pain.  Andy has tried to get Perl 5
+running under it nicely, but has met with limited success.  Maybe
+the Parrot will be nicer.
+
+=head2 Solaris lint
+
+Sun has made its dev tools freely available at
+L<http://developers.sun.com/prodtech/cc/>.  Its lint is the best one
+out there, except from Gimpel's FlexeLint
+(L<http://www.gimpel.com/html/flex.htm>) which costs many dollars.
+
+=head2 Enforcing coding standards, naming conventions, etc
+
+=over 4
+
+=item * Automatic standards checking
+
+The docs in F<filename here> explains what our code should look
+like.  Write something that automatically validates it in a .t file.
+
+=item * C<const> checking
+
+Declaring variables as C<const> wherever possible lets the compiler
+do lots of checking that wouldn't normally be possible.  Walk the
+source code adding the C<const> qualifier wherever possible.  The
+biggest bang is always in passing pointers into functions.
+
+=back
+
+=head2 Why consting is good
+
+In Perl, we have the C<use constant> pragma to define unchanging
+values.  The L<Readonly> module extends this to allow arrays and
+hashes to be non-modifiable as well.
+
+In C, we have C<const> numbers and pointers, and using them wherever
+possible lets us put safety checks in our code, and the compiler
+will watch over our shoulders.
+
+=head3 C<const> numbers
+
+The easiest way to use the C<const> qualifier is by flagging numbers
+that are set at the top of a block.  For example:
+
+    int max_elements;
+
+    max_elements = nusers * ELEMENTS_PER_USER;
+
+    ...
+
+    array[max_elements++] = n;
+    /* but you really meant array[max_elements] = n++; */
+
+Adding a C<const> qualifier means you can't accidentally modify
+C<max_elements>.
+
+    const int max_elements = nusers * ELEMENTS_PER_USER;
+
+=head3 C<const> pointers
+
+If a pointer is qualified as const, then its contents cannot be
+modified.  This lets the compiler protect you from doing naughty
+things to yourself.
+
+Here are two examples for functions you're familiar with:
+
+    int strlen( const char *str );
+    void memset( char *ptr, char value, int length );
+
+In the case of C<strlen>, the caller is guaranteed that any string
+passed in won't be modified.  How terrible it would be if it was
+possible for C<strlen> to modify what gets passed in!
+
+The const on C<strlen>'s parameter also lets the compiler know that
+C<strlen> can't be initializing what's passed in.  For example:
+
+    char buffer[ MAX_LEN ];
+
+    int n = strlen( buffer );
+
+The compiler knows that C<buffer> hasn't been initialized, and
+that C<strlen> can't be initializing it, so the call to C<strlen>
+is on an uninitialized value.
+
+Without the const, the compiler assumes that the contents of any
+pointer are getting initialized or modified.
+
+=head3 C<const> arrays
+
+Consting arrays makes all the values in the array non-modifiable.
+
+    const int days_per_month[] =
+        { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+
+You don't want to be able to do C<days_per_month[1] = 4;>, right?
+(We'll ignore that about 25% of the time you want C<days_per_month[1]>
+to be 29.)
+
+=head3 Mixing C<consts>
+
+Combining C<const>s on a pointer and its contents can get confusing.
+It's important to know on which side of the asterisk that the
+C<const> lies.
+
+To the left of the asterisk, the characters are constant.  To the
+right of the asterisk, the pointer is constant.
+
+Note the difference between a pointer to constant characters:
+
+    /* Pointer to constant characters */
+    const char *str = "Don't change me.";
+    str++;      /* legal, now points at "o" */
+    *str = "x"; /* not legal */
+
+and a constant pointer to characters:
+
+    /* Constant pointer to characters */
+    char * const str = buffer;
+    str++;      /* not legal */
+    *str = 'x'; /* buffer[0] is now 'x' */
+
+Note the difference between which side of the asterisk that the
+C<const> is on.
+
+You can also combine the two, with a constant pointer to constant
+characters:
+
+    const char * const str = "Don't change me";
+
+or even an array of constant pointers to constant characters:
+
+    const char * const days[] =
+        { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+
+If you see a declaration you don't understand, use C<cdecl>.  It's
+standard in many C compiler suites, and is freely available around
+the net.
+
+    $ cdecl
+    Type `help' or `?' for help
+    cdecl> explain const char * str;
+    declare str as pointer to const char
+    cdecl> explain char * const str;
+    declare str as const pointer to char
+
+=head2 Decreasing the amount of repeated code
+
+PMD (L<http://pmd.sourceforge.net/>) has been used on C code, even
+though it's a Java tool.  It looks for repeated strings of tokens
+that are candidates for either functions or macros.
+
+=head3 PMD usage
+
+General usage:
+
+  pmd [directory] [report format] [ruleset file]
+
+To generate html output of unused code within parrot use:
+
+  pmd . html rulesets/unusedcode.xml > unused_code.html
+
+Also distributed with PMD is the CPD (Copy/Paste Detector) which finds
+duplicate code.  An easy way to get started with this tool is to use the gui
+(cpdgui).  Set the root source directory to your parrot working directory,
+and choose the C<by extension...> option of the C<Language:> menu.  Then put
+C<.c> in the C<Extension:> box and click C<Go>.
+
+=head2 Automated source macros
+
+Perl5 has a lot of good source management techniques that we can use.
+
+=over 4
+
+=item * Macro for interp argument
+
+A macro for declaring the interpreter argument, and maybe a macro
+for passing it
+
+BTW, our Perl experience teaches us that somebody is going to want
+to make the interpreter a C++ object for Windows environments, and
+it wouldn't hurt to make that possible, or at least work in that
+direction, as long as clarity doesn't suffer.
+
+=item * Parrot_xxx macros
+
+Automated processing that would make a macro to let us write
+
+    somefunc(interp,a,b,c)
+
+while the linkage is
+
+    Parrot_somefunc(interp,a,b,c)
+
+for namespace cleanup.  This is straight out of F<embed.fnc> and
+F<proto.h> in Perl5.
+
+=back
+
+=head2 Automated generation of C headers
+
+This has started significantly with the F<headerizer.pl> program.
+Right now, it extracts the function headers correctly, but now I
+have to have it create the F<.h> files.
+
+=head2 Creating automated code checking tools
+
+=head2 Documenting function behavior and structure members
+
+=head2 Developing coverage tools
+
+=head2 Automatically running the coverage tools
+
+=head2 Run on many different C compilers
+
+Most of Andy's work right now is with GCC 4.2 on Linux.  We need
+many more.
+
+=head2 Run under valgrind
+
+Valgrind (L<http://valgrind.org/>) is a profiler/debugger most notable
+for the way it magically monitors memory accesses and management.
+
+To run parrot under Valgrind, the following argument set should be helpful:
+
+  valgrind --num-callers=500 \
+     --leak-check=full --leak-resolution=high --show-reachable=yes \
+     parrot --leak-test
+
+(adapted from a post to C<parrot-porters> by chromatic).
+
+=head2 IMCC cleanup
+
+From #parrot:
+
+    vsoni: there seems to be some dead code/feature....I had a chat
+    with leo and I am going to send and email to p6i for deprecation
+    of certain old features
+
+=head2 Help other contributors hack their patches into Parrot-style industrial-strength C code.
+
+From chip's comment at
+L<http://www.oreillynet.com/onlamp/blog/2006/07/calling_for_parrot_janitors.html>
+
+    We've just had contributed an improved register allocation
+    implementation, but since the contributor is new to Parrot,
+    there are some style and coding standards issues that need to
+    be worked out. It'd be great if a Cage Cleaner could step up
+    and help our new contributor bang the code into Parrotish form.
+
+=head2 Remove usage of deprecated features
+
+F<DEPRECATED.pod> lists features that are deprecated but not yet removed;
+A Trac ticket will document how this deprecated feature is to be replaced.
+Help prepare for the actual removal of the feature by replacing its usage.
+
+=head2 Clean up skipped tests
+
+Parrot has too many skipped tests.  Pick a test file with a skipped test,
+disable the skip() line, then make it pass.  The Parrot code may not compile,
+or you may have to modify it to bring it up to date.  The test may not even be
+useful anymore; we won't know until you try.
+
+If you can make it pass, great!
+
+If you can make it run, great!  Make it a TODO test instead.
+
+If neither, please report your findings so that everyone can decide what to do.
+
+=head1 Handy configuration tips
+
+=head2 Subversion configuration and automatic properties
+
+There is an example C<.subversion/config> file in
+F<editor/subversion_config> which is useful in automatically setting the
+appropriate Subversion properties relevant to Parrot on addition of new
+files.
+
+=head2 Displaying trailing whitespace in vim and emacs
+
+=head3 Vim
+
+Add this to your C<.vimrc>:
+
+    set list
+    set listchars=trail:-,tab:\.\ 
+
+B<NOTE>: there is a space character after the last backslash.  It is very 
+important!
+
+Contributed by Jerry Gay <jerry dot gay at gmail dot com>.
+
+=head3 Emacs
+
+Add this to your C<.emacs>:
+
+    (setq-default show-trailing-whitespace t)
+
+Emacs 22 users can highlight tabs like this:
+
+    (global-hi-lock-mode 1)
+    (highlight-regexp "\t")
+
+Contributed by Eric Hanchrow <offby1 at blarg dot net>.
+
+=head1 AUTHOR
+
+Paul Cochrane a.k.a. ptc; original document by Andy Lester
+
+=head1 SEE ALSO
+
+F<docs/project/roles_responsibilities.pod>, F<RESPONSIBLE_PARTIES>
+and the list of Cage items in Trac L<http://trac.parrot.org>.
+
+=cut

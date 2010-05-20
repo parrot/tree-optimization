@@ -1,0 +1,750 @@
+# Copyright (C) 2005-2010, Parrot Foundation.
+# $Id$
+
+=head1 PDD 21: Namespaces
+
+=head2 Abstract
+
+Description and implementation of Parrot namespaces.
+
+=head2 Version
+
+$Revision$
+
+=head2 Description
+
+=over 4
+
+=item - Namespaces should be stored under first-level namespaces corresponding
+to the HLL language name
+
+=item - Namespaces should be hierarchical
+
+=item - The C<get_namespace> opcode takes a multidimensional hash key or an
+array of name strings
+
+=item - Namespaces follow the semantics of the HLL in which they're defined
+
+=item - exports follow the semantics of the library's language
+
+=item - Two interfaces: typed and untyped
+
+=back
+
+=head2 Definitions
+
+=head3 "HLL"
+
+A High Level Language, such as Perl, Python, or Tcl, in contrast to PIR, which
+is a low-level language.
+
+=head3 "current namespace"
+
+The I<current namespace> at runtime is the namespace associated with the
+currently executing subroutine.  PASM assigns each subroutine a namespace when
+compilation of the subroutine begins.  Don't change the associated namespace
+of a subroutine unless you're prepared for weird consequences.
+
+(PASM also has its own separate concept of current namespace which is used to
+initialize the runtime current namespace as well as determine where to store
+compiled symbols.)
+
+
+=head2 Implementation
+
+=head3 Namespace Indexing Syntax
+
+Namespaces are denoted in Parrot as simple strings, multidimensional
+hash keys, or arrays of name strings.
+
+A namespace may appear in Parrot source code as the string C<"a"> or the
+key C<["a"]>.
+
+A nested namespace "b" inside the namespace "a" will appear as the key
+C<["a"; "b"]>.
+
+There is no limit to namespace nesting.
+
+=head3 Naming Conventions
+
+Parrot's target languages have a wide variety of namespace models. By
+implementing an API and standard conventions, it should be possible to
+allow interoperability while still allowing each one to choose the best
+internal representation.
+
+
+=over 4
+
+=item True Root Namespace
+
+The true root namespace is hidden from common usage, but it is available
+via the C<get_root_namespace> opcode. For example:
+
+  $P0 = get_root_namespace
+
+This root namespace stringifies to the empty string.
+
+=item HLL Root Namespaces
+
+Each HLL must store public items in a namespace named with the lowercased
+name of the HLL.  This is the HLL root namespace.  For instance, Tcl's
+user-created namespaces should live in the C<tcl> namespace.  This
+eliminates any accidental collisions between languages.
+
+An HLL root namespace must be stored at the first level in Parrot's namespace
+hierarchy.  These top-level namespaces should also be specified in a standard
+unicode encoding.  The reasons for these restrictions is to allow compilers
+to remain completely ignorant of each other.
+
+Parrot internals are stored in the default HLL root namespace C<parrot>.
+
+=item HLL Implementation Namespaces
+
+Each HLL must store implementation internals (private items) in an HLL
+root namespace named with an underscore and the lowercased name of the
+HLL.  For instance, Tcl's implementation internals should live in the
+C<_tcl> namespace.
+
+=item HLL User-Created Namespaces
+
+Each HLL must store all user-created namespaces under the HLL root
+namespace.  It is suggested that HLLs use hierarchical namespaces to
+practical extent.  A single flat namespace can be made to work, but it
+complicates symbol exportation.
+
+=back
+
+=head3 Namespace PMC API
+
+Most languages leave their symbols plain, which makes lookups quite
+straightforward.  Others use sigils or other mangling techniques, complicating
+the problem of interoperability.
+
+Parrot namespaces assist with interoperability by providing two interface
+subsets: the I<untyped interface> and the I<typed interface>.
+
+=head4 Untyped Interface
+
+Each HLL may, when working with its own namespace objects, use the I<untyped
+interface>, which allows direct naming in the native style of the namespace's
+HLL.
+
+This interface consists of the standard Parrot hash interface, with all its
+keys, values, lookups, deletions, etc.  Just treat the namespace like a
+hash.  (It probably is one, really, deep down.)
+
+The untyped interface also has one method:
+
+=over 4
+
+=item C<get_name>
+
+=begin PIR_FRAGMENT
+
+    $P1 = $P2.'get_name'()
+
+=end PIR_FRAGMENT
+
+Gets the name of the namespace $P2 as an array of strings.  For example,
+if $P2 is a Perl 5 namespace "Some::Module", within the Perl 5 HLL, then
+get_name() on $P2 returns an array of "perl5", "Some", "Module". It
+returns the literal namespace names as the HLL stored them, without
+filtering for name mangling.
+
+NOTE: Due to aliasing, this value may be wrong -- i.e. it may disagree with
+the namespace name with which you found the namespace in the first place.
+
+=back
+
+=head4 Typed Interface
+
+When a given namespace's HLL is either different from the current HLL or
+unknown, an HLL should generally use only the language-agnostic namespace
+interface.  This interface isolates HLLs from each others' naming quirks.  It
+consists of C<add_foo()>, C<find_foo()>, and C<del_foo()> methods, for
+values of "foo" including "sub" (something executable), "namespace"
+(something in which to find more names), and "var" (anything).
+
+NOTE: The job of the typed interface is to bridge I<naming> differences, and
+I<only> naming differences.  Therefore: 1) It does not enforce, nor even
+notice, the interface requirements of "sub" or "namespace": e.g.
+execution of C<add_sub("foo", $P0)> does I<not> automatically guarantee
+that $P0 is an invokable subroutine; and 2) it does not prevent
+overwriting one type with another.
+
+=over 4
+
+=item C<add_namespace>
+
+=begin PIR_FRAGMENT
+
+    $P1.'add_namespace'($S2, $P3)
+
+=end PIR_FRAGMENT
+
+Store $P3 as a namespace under the namespace $P1, with the name of $S2.
+
+=item C<add_sub>
+
+=begin PIR_FRAGMENT
+
+    $P1.'add_sub'($S2, $P3)
+
+=end PIR_FRAGMENT
+
+Store $P3 as a subroutine with the name of $S2 in the namespace $P1.
+
+=item C<add_var>
+
+=begin PIR_FRAGMENT
+
+    $P1.'add_var'($S2, $P3)
+
+=end PIR_FRAGMENT
+
+Store $P3 as a variable with the name of $S2 in the namespace $P1.
+
+IMPLEMENTATION NOTE: Perl namespace implementations may choose to implement
+add_var() by checking which parts of the variable interface are
+implemented by $P0 (scalar, array, and/or hash) so it can decide on an
+appropriate sigil.
+
+=item C<del_namespace>, C<del_sub>, C<del_var>
+
+=begin PIR_FRAGMENT
+
+    $P1.'del_namespace'($S2)
+    $P1.'del_sub'($S2)
+    $P1.'del_var'($S2)
+
+=end PIR_FRAGMENT
+
+Delete the sub, namespace, or variable named $S2 from the namespace $P1.
+
+=item C<find_namespace>, C<find_sub>, C<find_var>
+
+=begin PIR_FRAGMENT
+
+    $P1 = $P2.'find_namespace'($S3)
+    $P1 = $P2.'find_sub'($S3)
+    $P1 = $P2.'find_var'($S3)
+
+=end PIR_FRAGMENT
+
+Find the sub, namespace, or variable named $S3 in the namespace $P2.
+
+IMPLEMENTATION NOTE: Perl namespace implementations should implement
+find_var() to check all variable sigils, but the order is not to be counted on
+by users.  If you're planning to let Python code see your module, you should
+avoid exporting both C<our $A> and C<our @A>.  (Well, you might want to
+consider not exporting variables at all, but that's a style issue.)
+
+=item C<export_to>
+
+=begin PIR_FRAGMENT
+
+    $P1.'export_to'($P2, $P3)
+
+=end PIR_FRAGMENT
+
+Export items from the namespace $P1 into the namespace $P2.  The items to
+export are named in $P3, which may be an array of strings, a hash, or null.
+If $P3 is an array of strings, interpretation of items in an array follows
+the conventions of the source (exporting) namespace.
+If $P3 is a hash, the keys correspond to the names in the source namespace,
+and the values correspond to the names in the destination namespace.
+If a hash value is null or an empty string, the name in the hash key is used.
+A null $P3 requests the 'default' set of items.
+Any other type passed into $P3 throws an exception.
+
+The base Parrot namespace export_to() function interprets item names as
+literals -- no wildcards or other special meaning.  There is no default list
+of items to export, so $P3 of null and $P3 of an empty array have the same
+behavior.
+
+NOTE: Exportation may entail non-obvious, odd, or even mischievous behavior.
+For example, Perl's pragmata are implemented as exports, and they don't
+actually export anything.
+
+IMPLEMENTATION EXAMPLES: Suppose a Perl program were to import some Tcl module
+with an import pattern of "c*" -- something that might be expressed in Perl 6
+as C<use tcl:Some::Module 'c*'>.  This operation would import all the commands
+that start with 'c' from the given Tcl namespace into the current Perl
+namespace.  This is so because, regardless of whether 'c*' is a Perl 6 style
+export pattern, it I<is> a valid Tcl export pattern.
+
+{XXX - The ':' for HLL is just proposed. This example will need to be
+updated later.}
+
+IMPLEMENTATION NOTE: Most namespace C<export_to> implementations will restrict
+themselves to using the typed interface on the target namespace.  However,
+they may also decide to check the type of the target namespace and, if it
+turns out to be of a compatible type, to use same-language shortcuts.
+
+DESIGN TODO: Figure out a good convention for a default export list in the
+base namespace PMC.  Maybe a standard method "expand_export_list()"?
+
+=back
+
+=head3 Compiler PMC API
+
+=head4 Methods
+
+=over 4
+
+=item C<parse_name>
+
+=begin PIR_FRAGMENT
+
+    $P1 = $P2.'parse_name'($S3)
+
+=end PIR_FRAGMENT
+
+Parse the name in $S3 using the rules specific to the compiler $P2, and
+return an array of individual name elements.
+
+For example, a Java compiler would turn 'C<a.b.c>' to C<['a','b','c']>,
+while a Perl compiler would turn 'C<a::b::c>' into the same result.
+Meanwhile, due to Perl's sigil rules, 'C<$a::b::c>' would become
+C<['a','b','$c']>.
+
+=item C<get_namespace>
+
+=begin PIR_FRAGMENT
+
+    $P1 = $P2.'get_namespace'($P3)
+
+=end PIR_FRAGMENT
+
+Ask the compiler $P2 to find its namespace which is named by the
+elements of the array in $P3.  If $P3 is a null PMC or an empty array,
+C<get_namespace> retrieves the base namespace for the HLL.  It returns a
+namespace PMC on success and a null PMC on failure.
+
+This method allows other HLLs to know one name (the HLL) and then work with
+that HLL's modules without having to know the name it chose for its namespace
+tree.  (If you really want to know the name, the get_name() method should work
+on the returned namespace PMC.)
+
+Note that this method is basically a convenience and/or performance hack, as
+it does the equivalent of C<get_root_namespace> followed by
+zero or more calls to <namespace>.get_namespace().  However, any compiler is
+free to cheat if it doesn't get caught, e.g. to use the untyped namespace
+interface if the language doesn't mangle namespace names.
+
+=item C<load_library>
+
+=begin PIR_FRAGMENT
+
+    $P1.'load_library'($P2, $P3)
+
+=end PIR_FRAGMENT
+
+Ask this compiler to load a library/module named by the elements of the array
+in $P2, with optional control information in $P3.
+
+For example, Perl 5's module named "Some::Module" should be loaded using (in
+pseudo Perl 6): C<perl5.load_library(["Some", "Module"], null)>.
+
+The meaning of $P3 is compiler-specific.  The only universal legal value is
+Null, which requests a "normal" load.  The meaning of "normal" varies, but
+the ideal would be to perform only the minimal actions required.
+
+On failure, an exception is thrown.
+
+=back
+
+=head3 Subroutine PMC API
+
+Some information must be available about subroutines to implement the correct
+behavior about namespaces.
+
+=head4 Methods
+
+=over 4
+
+=item C<get_namespace>
+
+=begin PIR_FRAGMENT
+
+    $P1 = $P2.'get_namespace'()
+
+=end PIR_FRAGMENT
+
+Retrieve the namespace $P1 where the subroutine $P2 was defined. (As
+opposed to the namespace(s) that it may have been exported to.)
+
+=back
+
+=head3 Namespace Opcodes
+
+The namespace opcodes all have 3 variants: one that operates from the
+currently selected namespace (i.e. the namespace of the currently
+executing subroutine), one that operates from the HLL root namespace
+(identified by "hll" in the opcode name), and one that operates from the
+true root namespace (identified by "root" in the name).
+
+=over 4
+
+=item C<set_namespace>
+
+=begin PIR_FRAGMENT_INVALID
+
+    set_namespace ['key'], $P1
+    set_hll_namespace ['key'], $P1
+    set_root_namespace ['key'], $P1
+
+=end PIR_FRAGMENT_INVALID
+
+Add the namespace PMC $P1 under the name denoted by a multidimensional
+hash key.
+
+=begin PIR_FRAGMENT_INVALID
+
+    set_namespace $P1, $P2
+    set_hll_namespace $P1, $P2
+    set_root_namespace $P1, $P2
+
+=end PIR_FRAGMENT_INVALID
+
+Add the namespace PMC $P2 under the name denoted by an array of name
+strings $P1.
+
+=item C<get_namespace>
+
+=begin PIR_FRAGMENT
+
+    $P1 = get_namespace
+    $P1 = get_hll_namespace
+    $P1 = get_root_namespace
+
+=end PIR_FRAGMENT
+
+Retrieve the current namespace, the HLL root namespace, or the true
+root namespace and store it in $P1.
+
+=begin PIR_FRAGMENT_INVALID
+
+    $P1 = get_namespace [key]
+    $P1 = get_hll_namespace [key]
+    $P1 = get_root_namespace [key]
+
+=end PIR_FRAGMENT_INVALID
+
+Retrieve the namespace denoted by a multidimensional hash key and
+store it in C<$P1>.
+
+=begin PIR_FRAGMENT
+
+    $P1 = get_namespace $P2
+    $P1 = get_hll_namespace $P2
+    $P1 = get_root_namespace $P2
+
+=end PIR_FRAGMENT
+
+Retrieve the namespace denoted by the array of names $P2 and store it in
+C<$P1>.
+
+Thus, to get the "Foo::Bar" namespace from the top-level of the HLL if
+the name was known at compile time, you could retrieve the namespace
+with a key:
+
+=begin PIR_FRAGMENT
+
+  $P0 = get_hll_namespace ["Foo"; "Bar"]
+
+=end PIR_FRAGMENT
+
+If the name was not known at compile time, you would retrieve the
+namespace with an array instead:
+
+=begin PIR_FRAGMENT
+
+  $P1 = split "::", "Foo::Bar"
+  $P0 = get_hll_namespace $P1
+
+=end PIR_FRAGMENT
+
+=item C<make_namespace>
+
+=begin PIR_FRAGMENT_INVALID
+
+    $P1 = make_namespace [key]
+    $P1 = make_hll_namespace [key]
+    $P1 = make_root_namespace [key]
+
+=end PIR_FRAGMENT_INVALID
+
+Create and retrieve the namespace denoted by a multidimensional hash key
+and store it in C<$P1>. If the namespace already exists, only retrieve
+it.
+
+=begin PIR_FRAGMENT_INVALID
+
+    $P1 = make_namespace $P2
+    $P1 = make_hll_namespace $P2
+    $P1 = make_root_namespace $P2
+
+=end PIR_FRAGMENT_INVALID
+
+Create and retrieve the namespace denoted by the array of names $P2 and
+store it in C<$P1>. If the namespace already exists, only retrieve it.
+
+=item C<get_global>
+
+=begin PIR_FRAGMENT
+
+    $P1 = get_global $S2
+    $P1 = get_hll_global $S2
+    $P1 = get_root_global $S2
+
+=end PIR_FRAGMENT
+
+Retrieve the symbol named $S2 in the current namespace, HLL root
+namespace, or true root namespace.
+
+=begin PIR_FRAGMENT
+
+    .local pmc key
+    $P1 = get_global [key], $S2
+    $P1 = get_hll_global [key], $S2
+    $P1 = get_root_global [key], $S2
+
+=end PIR_FRAGMENT
+
+Retrieve the symbol named $S2 by a multidimensional hash key relative
+to the current namespace, HLL root namespace, or true root namespace.
+
+=begin PIR_FRAGMENT
+
+    $P1 = get_global $P2, $S3
+    $P1 = get_hll_global $P2, $S3
+    $P1 = get_root_global $P2, $S3
+
+=end PIR_FRAGMENT
+
+Retrieve the symbol named $S3 by the array of names $P2 relative to the
+current namespace, HLL root namespace, or true root namespace.
+
+=item C<set_global>
+
+=begin PIR_FRAGMENT
+
+    set_global $S1, $P2
+    set_hll_global $S1, $P2
+    set_root_global $S1, $P2
+
+=end PIR_FRAGMENT
+
+Store $P2 as the symbol named $S1 in the current namespace, HLL root
+namespace, or true root namespace.
+
+=begin PIR_FRAGMENT
+
+    .local pmc key
+    set_global [key], $S1, $P2
+    set_hll_global [key], $S1, $P2
+    set_root_global [key], $S1, $P2
+
+=end PIR_FRAGMENT
+
+Store $P2 as the symbol named $S1 by a multidimensional hash key,
+relative to the current namespace, HLL root namespace, or true root
+namespace.  If the given namespace does not exist it is created.
+
+=begin PIR_FRAGMENT
+
+    set_global $P1, $S2, $P3
+    set_hll_global $P1, $S2, $P3
+    set_root_global $P1, $S2, $P3
+
+=end PIR_FRAGMENT
+
+Store $P3 as the symbol named $S2 by the array of names $P1, relative to
+the current namespace, HLL root namespace, or true root namespace.  If
+the given namespace does not exist it is created.
+
+=back
+
+=head3 HLL Namespace Mapping
+
+In order to make this work, Parrot must somehow figure out what type of
+namespace PMC to create.
+
+=head4 Default Namespace
+
+The default namespace PMC will implement Parrot's current behavior.
+
+=head4 Compile-time Creation
+
+This Perl:
+
+  #!/usr/bin/perl
+  package Foo;
+  $x = 5;
+
+should map roughly to this PIR:
+
+=begin PIR
+
+  .HLL "Perl5"
+  .loadlib "perl5_group"
+  .namespace [ "Foo" ]
+  .sub main :main
+    $P0 = new 'PerlInt'
+    $P0 = 5
+    set_global "$x", $P0
+  .end
+
+=end PIR
+
+In this case, the C<main> sub would be tied to Perl 5 by the C<.HLL>
+directive, so a Perl 5 namespace would be created.
+
+=head4 Run-time Creation
+
+Consider the following Perl 5 program:
+
+  #!/usr/bin/perl
+  $a = 'x';
+  ${"Foo::$a"} = 5;
+
+The C<Foo::> namespace is created at run-time (without any optimizations).  In
+these cases, Parrot should create the namespace based on the HLL of the PIR
+subroutine that calls the store function.
+
+=begin PIR
+
+  .HLL "Perl5"
+  .loadlib "perl5_group"
+  .sub main :main
+    # $a = 'x';
+    $P0 = new 'PerlString'
+    $P0 = "x"
+    set_global "$a", $P0
+    # ${"Foo::$a"} = 5;
+    $P1 = new 'PerlString'
+    $P1 = "Foo::"
+    $P1 .= $P0
+    $S0 = $P1
+    $P2 = split "::", $S0
+    $S0 = pop $P2
+    $S0 = "$" . $S0
+    $P3 = new 'PerlInt'
+    $P3 = 5
+    set_global $P2, $S0, $P3
+  .end
+
+=end PIR
+
+In this case, C<set_global> should see that it was called from "main",
+which is in a Perl 5 namespace, so it will create the "Foo" namespace as
+a Perl 5 namespace.
+
+=head2 Language Notes
+
+=head3 Perl 6
+
+=head4 Sigils
+
+Perl 6 may wish to be able to access the namespace as a hash with sigils.
+That is certainly possible, even with subroutines and methods.  It's not
+important that a HLL use the typed namespace API, it is only important that it
+provides it for others to use.
+
+So Perl 6 may implement C<get_keyed> and C<set_keyed> VTABLE slots that
+allow the namespace PMC to be used as a hash.  The C<find_sub> method would,
+in this case, append a "&" sigil to the front of the sub/method name and
+search in the internal hash.
+
+=head3 Python
+
+=head4 Importing from Python
+
+Since functions and variables overlap in Python's namespaces, when exporting
+to another HLL's namespace, the Python namespace PMC's C<export_to> method
+should use introspection to determine whether C<x> should be added using
+C<add_var> or C<add_sub>.  C<$I0 = does $P0, "Sub"> may be enough to decide
+correctly.
+
+=head4 Subroutines and Namespaces
+
+Since Python's subroutines and namespaces are just variables (the namespace
+collides there), the Python PMC's C<find_var> method may return subroutines as
+variables.
+
+
+=head3 Examples
+
+=head4 Aliasing
+
+Perl:
+
+  #!/usr/bin/perl6
+  sub foo {...}
+  %Foo::{"&bar"} = &foo;
+
+PIR:
+
+=begin PIR
+
+  .sub main :main
+    $P0 = get_global "&foo"
+    $P1 = get_namespace ["Foo"]
+
+    # A smart perl6 compiler would emit this,
+    # because it knows that Foo is a perl6 namespace:
+    $P1["&bar"] = $P0
+
+    # But a naive perl6 compiler would emit this:
+    $P1.'add_sub'("bar", $P0)
+
+  .end
+
+  .sub foo
+    #...
+  .end
+
+=end PIR
+
+=head4 Cross-language Exportation
+
+Perl 5:
+
+  #!/usr/bin/perl
+  use tcl:Some::Module 'w*';   # XXX - ':' after HLL may change in Perl 6
+  write("this is a tcl command");
+
+PIR (without error checking):
+
+=begin PIR
+
+  .sub main :main
+    .local pmc tcl
+    .local pmc ns
+    tcl = compreg "tcl"
+    ns = new 'Array'
+    ns = 2
+    ns[0] = "Some"
+    ns[1] = "Module"
+    null $P0
+    tcl.'load_library'(ns, $P0)
+    $P0 = tcl.'get_namespace'(ns)
+    $P1 = get_namespace
+    $P0.'export_to'($P1, 'w*')
+    "write"("this is a tcl command")
+  .end
+
+=end PIR
+
+=head2 References
+
+None.
+
+=cut
+
+__END__
+Local Variables:
+  fill-column:78
+End:
+vim: expandtab shiftwidth=4:

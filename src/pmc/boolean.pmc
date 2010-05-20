@@ -1,0 +1,121 @@
+/*
+Copyright (C) 2001-2007, Parrot Foundation.
+$Id$
+
+=head1 NAME
+
+src/pmc/boolean.pmc - Boolean PMC
+
+=head1 DESCRIPTION
+
+This class implements a boolean value variable.
+
+Albeit the C<Boolean PMC> is derived from the C<Integer PMC>,
+it doesn't morph to other types. Only its value is changed.
+
+=head2 Methods
+
+=over 4
+
+=cut
+
+*/
+
+/* HEADERIZER HFILE: none */
+
+pmclass Boolean extends Integer provides boolean provides scalar auto_attrs {
+
+/*
+
+=item C<void init_pmc(PMC *value)>
+
+Initialises SELF value according to the boolean value of the passed PMC.
+
+=cut
+
+*/
+    VTABLE void init_pmc(PMC *value) {
+        if (!PMC_IS_NULL(value)) {
+            SELF.set_bool(VTABLE_get_bool(INTERP, value));
+        }
+        else {
+            SELF.set_bool(0);
+        }
+    }
+/*
+
+=item C<STRING *get_string()>
+
+Return "1" or "0".
+
+=cut
+
+*/
+    VTABLE STRING *get_string() {
+        return SUPER();
+    }
+
+
+/*
+
+=item C<void set_integer_native(INTVAL value)>
+
+=item C<void set_bool(INTVAL value)>
+
+=item C<void set_pmc(PMC *value)>
+
+=cut
+
+*/
+    VTABLE void set_integer_native(INTVAL value) {
+        SUPER((value != 0));
+    }
+
+
+    VTABLE void set_bool(INTVAL value) {
+        SELF.set_integer_native(value);
+    }
+
+/*
+
+=item C<void set_number_native(FLOATVAL value)>
+
+Sets the value to C<value> evaluated in a boolean context.
+
+=cut
+
+*/
+
+    VTABLE void set_number_native(FLOATVAL value) {
+        SELF.set_bool(!FLOAT_IS_ZERO(value));
+    }
+
+/*
+
+=item C<void set_string_native(STRING *value)>
+
+Sets the value to C<*value> evaluated in a boolean context.
+
+=cut
+
+*/
+
+    VTABLE void set_string_native(STRING *value) {
+        SELF.set_bool(Parrot_str_boolean(INTERP, value));
+    }
+}
+
+/*
+
+=back
+
+=cut
+
+*/
+
+/*
+ * Local variables:
+ *   c-file-style: "parrot"
+ * End:
+ * vim: expandtab shiftwidth=4:
+ */

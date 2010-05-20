@@ -1,0 +1,30 @@
+=head1 PIR tutorial
+
+Each of the files in this directory contains valid PIR code and POD
+(Perl 5's Plain Old Documentation) and can be read as plain text.
+To view just the documentation without the sample code, use C<perldoc>:
+
+ perldoc example.pir
+
+If you'd like to execute the code from files you need to build parrot and 
+then type:
+
+ ../../parrot example.pir
+
+The parrot test suite also checks the output of these examples, so you
+always know that they are valid PIR code. You can execute all the tests
+by typing:
+
+ cd ../../ ; prove -v t/examples/tutorial.t ; cd examples/tutorial
+
+When adding an new example or changing the output of an example please
+update F<t/examples/tutorial.t> as well.
+
+=cut
+
+# Local Variables:
+#   mode: pir
+#   fill-column: 100
+# End:
+# vim: expandtab shiftwidth=4 ft=pir:
+

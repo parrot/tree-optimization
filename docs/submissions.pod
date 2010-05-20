@@ -1,0 +1,315 @@
+# Copyright (C) 2004-2008, Parrot Foundation.
+# $Id$
+
+=head1 NAME
+
+docs/submissions.pod - Parrot Submission Instructions
+
+=head1 ABSTRACT
+
+How to submit bug reports, patches and new files to Parrot.
+
+=head1 How To Submit A Bug Report
+
+If you encounter an error while working with Parrot and don't understand what
+is causing it, create a bug report using the F<parrotbug> utility. The
+simplest way to use it is to run
+
+    % ./parrotbug
+
+in the distribution's root directory, and follow the prompts.
+
+However, if you do know how to fix the problem you encountered, then think
+about submitting a patch, or (see below) getting commit privileges.
+
+=head1 How To Create A Patch
+
+Try to keep your patches specific to a single change, and ensure that your
+change does not break any tests.  Do this by running C<make test>.  If there is
+no test for the fixed bug, please provide one.
+
+In the following examples, F<parrot> contains the Parrot distribution, and
+F<workingdir> contains F<parrot>. The name F<workingdir> is just a placeholder
+for whatever the distribution's parent directory is called on your machine.
+
+    workingdir
+        |
+        +--> parrot
+                |
+                +--> LICENSE
+                |
+                +--> src
+                |
+                +--> tools
+                |
+                +--> ...
+
+=over
+
+=item C<svn>
+
+If you are working with a checked out copy of parrot then please generate
+your patch with C<svn diff>.
+
+    cd parrot
+    svn status
+    svn diff > my_contribution.patch
+
+=item Single C<diff>
+
+If you are working from a released distribution of Parrot and the change you
+wish to make affects only one or two files, then you can supply a C<diff> for
+each file.  The C<diff> should be created in F<parrot>.  Please be sure to
+create a unified diff, with C<diff -u>.
+
+    cd parrot
+    diff -u docs/submissions.pod docs/submissions.new > submissions.patch
+
+Win32 users will probably need to specify C<-ub>.
+
+=item Recursive C<diff>
+
+If the change is more wide-ranging, then create an identical copy of F<parrot>
+in F<workingdir> and rename it F<parrot.new>. Modify F<parrot.new> and run a
+recursive C<diff> on the two directories to create your patch. The C<diff>
+should be created in F<workingdir>.
+
+    cd workingdir
+    diff -ur --exclude='.svn' parrot parrot.new > docs.patch
+
+Mac OS X users should also specify C<--exclude=.DS_Store>.
+
+=item C<CREDITS>
+
+Each and every patch is an important contribution to Parrot and it's important
+that these efforts are recognized.  To that end, the F<CREDITS> file contains
+an informal list of contributors and their contributions made to Parrot.  Patch
+submitters are encouraged to include a new or updated entry for themselves in
+F<CREDITS> as part of their patch.
+
+The format for entries in F<CREDITS> is defined at the top of the file.
+
+=back
+
+=head1 How To Submit A Patch
+
+=over 4
+
+=item 1
+
+Go to Parrot's ticket tracking system at
+L<https://trac.parrot.org/parrot/>. Log in, or create an account if you
+don't have one yet.
+
+=item 2
+
+If there is already a ticket for the bug or feature that your patch relates
+to, just attach the patch directly to the ticket.
+
+=item 3
+
+Otherwise select "New Ticket" at the top of the site.
+L<https://trac.parrot.org/parrot/newticket>
+
+=item 4
+
+Give a clear and concise Summary.  You do B<NOT> need to prefix the Summary
+with a C<[PATCH]> identifier.  Instead, in the lower-right corner of the
+F<newticket> page, select status C<new> in the F<Patch status> drop-down box.
+
+=item 5
+
+The Description should contain an explanation of the purpose of the patch, and
+a list of all files affected with summary of the changes made in each file.
+Optionally, the output of the C<diffstat(1)> utility when run on your patch(s)
+may be included at the bottom of the message body.
+
+=item 6
+
+Set the Type of the ticket to "patch". Set other relevant drop-down
+menus, such as Version (the version of Parrot where you encountered the
+problem), Platform, or Severity.  As mentioned above, select status C<new> in
+the F<Patch status> drop-down box.
+
+=item 7
+
+Check the box for "I have files to attach to this ticket". Double-check
+that you've actually done this, because it's easy to forget.
+
+B<DO NOT> paste the patch file content into the Description.
+
+=item 8
+
+Click the "Create ticket" button. On the next page attach your patch
+file(s).
+
+=back
+
+=head1 Applying Patches
+
+You may wish to apply a patch submitted by someone else before the patch is
+incorporated into SVN.
+
+For single C<diff> patches or C<svn> patches, copy the patch file to
+F<parrot>, and run:
+
+    cd parrot
+    patch -p0 < some.patch
+
+For recursive C<diff> patches, copy the patch file to F<workingdir>, and run:
+
+    cd workingdir
+    patch -p0 < some.patch
+
+In order to be on the safe side run 'make test' before actually committing
+the changes.
+
+=head2 Configuration of files to ignore
+
+Sometimes new files will be created in the configuration and build process of
+Parrot. These files should not show up when checking the distribution with
+
+    svn status
+
+or
+
+    perl tools/dev/manicheck.pl
+
+The list of these ignore files can be set up with:
+
+    svn propedit svn:ignore <PATH>
+
+In order to keep the two different checks synchronized,
+the MANIFEST and MANIFEST.SKIP file should be regenerated with:
+
+    perl tools/dev/mk_manifest_and_skip.pl
+
+
+=head1 How To Submit Something New
+
+If you have a new feature to add to Parrot, such as a new test.
+
+=over
+
+=item 1
+
+Add your new file path(s), relative to F<parrot>, to the file MANIFEST. Create
+a patch for the MANIFEST file according to the instructions in B<How To Submit
+A Patch>.
+
+=item 2
+
+If you have a new test script ending in C<.t>, some mailers may become confused
+and consider it an application/x-troff. One way around this (for *nix users) is
+to diff the file against /dev/null like this:
+
+    cd parrot
+    diff -u /dev/null newfile.t > newfile.patch
+
+=item 3
+
+Go to Parrot's ticket tracking system at
+L<https://trac.parrot.org/parrot/>. Log in, or create an account if you
+don't have one yet.
+
+=item 4
+
+Select "New Ticket" L<https://trac.parrot.org/parrot/newticket>.
+
+=item 5
+
+Give a clear and concise Summary.
+
+Prefix it with a C<[NEW]> identifier.
+
+=item 6
+
+The Description should contain an explanation of the purpose of the feature
+you are adding.  Optionally, include the output of the C<diffstat(1)> utility
+when run on your patch(es).
+
+=item 7
+
+Set the Type of the ticket to "patch". Set other relevant drop-down
+menus, such as Version, Platform, or Severity.
+
+=item 8
+
+Check the box for "I have files to attach to this ticket"
+
+Double-check that you've actually done this, because it's easy to forget.
+
+B<DO NOT> paste the content of the new file or files into the body of the
+message.
+
+=item 9
+
+Click the "Create ticket" button. On the next page attach the patch for
+MANIFEST and your new file(s).
+
+=back
+
+=head1 What Happens Next?
+
+If you created a new ticket for the submission, you will be taken to the page
+for the new ticket and can check on the progress of your submission there.
+This identifier should be used in all correspondence concerning the submission.
+
+Everyone on Trac sees the submission and can comment on it. A developer with
+SVN commit authority can commit it to SVN once it is clear that it is the
+right thing to do.
+
+However developers with SVN commit authority may not commit your changes
+immediately if they are large or complex, as we need time for peer review.
+
+A list of active tickets can be found here:
+L<http://trac.parrot.org/parrot/report/1>
+
+A list of all the unresolved patches is at:
+L<http://trac.parrot.org/parrot/report/15>
+
+=head1 Patches for the Parrot website
+
+The L<http://www.parrot.org> website is hosted in a Drupal CMS. Submit
+changes through the usual ticket interface in Trac.
+
+=head1 Getting Commit Privileges
+
+If you are interested in getting commit privileges to Parrot, here is
+the procedure:
+
+=over 4
+
+=item 1
+
+Submit several high quality patches (and have them committed) via the process
+described in this document.  This process may take weeks or months.
+
+=item 2
+
+Obtain a Trac account at L<https://trac.parrot.org/parrot>
+
+=item 3
+
+Submit a Parrot Contributor License Agreement; this document signifies that you
+have the authority to license your work to Parrot Foundation for inclusion in
+their projects.  You may need to discuss this with your employer if you
+contribute to Parrot on work time or with work resources, or depending on your
+employment agreement.
+
+L<http://www.parrot.org/files/parrot_cla.pdf>
+
+=item 4
+
+Request commit access via the C<parrot-dev> mailing list, or via IRC
+(#parrot on irc.parrot.org). The existing committers will discuss your
+request in the next couple of weeks.
+
+If approved, a metacommitter will update the permissions to allow you to commit
+to Parrot; see C<RESPONSIBLE_PARTIES> for the current list.  Welcome aboard!
+
+=back
+
+Thanks for your help!
+
+=cut

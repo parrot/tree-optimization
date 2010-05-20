@@ -1,0 +1,83 @@
+# Copyright (C) 2001-2007, Parrot Foundation.
+# $Id$
+
+=head1 NAME
+
+docs/faq.pod - Parrot FAQ
+
+=head1 GENERAL QUESTIONS
+
+=head2 What is Parrot?
+
+Parrot is a virtual machine for dynamic languages such as PHP, Perl, Python,
+Ruby, Scheme, Tcl, etc. It compiles and executes bytecode, but is also designed
+to act as an interpreter.
+
+=head2 Why did you call it "Parrot"?
+
+The name "Parrot" started with Simon Cozens's April Fool's Joke
+(L<http://www.perl.com/pub/a/2001/04/01/parrot.htm>) where Larry Wall and Guido
+van Rossum announced the merger of the Perl and Python languages.
+
+A year later, when we were looking for a name for our virtual machine that
+could run both Perl and Python, it seemed like a perfect fit.
+
+=head2 Is Parrot the same as Perl 6?
+
+No. Perl 6 is just one of the languages that will run on Parrot. For
+information about Perl 6 on Parrot (a.k.a Rakudo), see L<languages/perl6/>.
+
+=head2 Can I use Parrot today?
+
+Yes.
+
+Although Parrot is currently still under development, Parrot has been usable for
+a long time. The primary way to use Parrot is to write Parrot Intermediate
+Representation (PIR), described in L<PDD19|docs/pdds/pdd19_pir.pod>.
+PIR is a high-level assembly language. See the L<examples> directory.
+
+=head2 When can I expect to use Parrot with a I<real> programming language?
+
+While the languages that are shipped with our pre-release versions of
+parrot are in varying states of development, many of them are quite
+functional. See L<https://trac.parrot.org/parrot/wiki/Languages>
+for information about the various languages that are targeting parrot.
+
+=head2 What language is Parrot written in?
+
+While much of the build system currently uses perl 5.8.0, the parrot
+runtime is C89.
+
+=head2 Why register-based and not stack-based?
+
+Stack-based virtual machines and interpreters (JVM, .NET, Perl5, etc) are
+both common and successful. However, register-based implementations give
+us a number of benefits: Less code needed to manipulate the stack
+frequently, access to decades of optimization for register-based hardware,
+and a minimization of stack overflow security problems. For many
+programmers, our register architecture just I<feels> more normal than
+doing everything on a stack too.
+
+=head2 Why aren't you using external tool or library I<X>?
+
+The most common issues are:
+
+=over 4
+
+=item License compatibility
+
+Parrot uses the Artistic License 2.0, which is compatible with
+the GNU GPL. This means you can combine Parrot with GPL'ed code.
+
+=item Platform compatibility
+
+Parrot has to work on most of Perl 5's platforms, as well as a few of its own.
+Perl 5 runs on eighty platforms; Parrot must run on Unix, Windows, Mac OS (X
+and Classic), VMS, Crays, Windows CE, and Palm OS, just to name a few.  Among
+its processor architectures will be x86, SPARC, Alpha, IA-64, ARM, and 68x00
+(Palms and old Macs).  If something doesn't work on all of these, we can't use
+it in core Parrot.
+
+=back
+
+=cut

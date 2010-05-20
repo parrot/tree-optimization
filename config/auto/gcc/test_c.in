@@ -1,0 +1,32 @@
+/*
+Copyright (C) 2002-2009, Parrot Foundation.
+$Id$
+
+figure out if the compiler is gcc.
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+
+int
+main(int argc, char **argv)
+{
+    puts("(");
+#if defined(__GNUC__) && ! defined(__INTEL_COMPILER)
+    printf("__GNUC__ => %d,\n", __GNUC__);
+#  ifdef __GNUC_MINOR__
+    printf("__GNUC_MINOR__ =>%d,\n", __GNUC_MINOR__);
+#  endif
+#else
+    puts("__GNUC__ => undef,");
+#endif
+    puts(");");
+    return EXIT_SUCCESS;
+}
+
+/*
+ * Local variables:
+ *   c-file-style: "parrot"
+ * End:
+ * vim: expandtab shiftwidth=4:
+ */

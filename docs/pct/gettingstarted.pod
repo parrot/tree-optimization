@@ -1,0 +1,235 @@
+# Copyright (C) 2008, Parrot Foundation.
+# $Id$
+
+=head1 NAME
+
+Getting Started with the Parrot Compiler Tools
+
+=head1 DESCRIPTION
+
+This document can be considered your Number One entry point for starting to use
+the Parrot Compiler Tools (PCT). As there's a whole lot of acronyms flying
+around (see Parrot's glossary at L<http://www.parrotcode.org/glossary.html>),
+this document will get you up and running within 10 minutes (that excludes
+building Parrot). Once you begin, it's a matter of getting your hands dirty and
+get experienced using the tools. Feel free to ask questions on
+irc.parrot.org#parrot.
+
+=head1 GETTING STARTED
+
+Getting started using the PCT is easy.  The steps are:
+
+=over 4
+
+=item * download and build Parrot
+
+=item * generate a language stub
+
+=item * customize your language
+
+=back
+
+The acronyms you will encounter, are:
+
+=over 4
+
+=item * PASM
+
+Stands for Parrot Assembly language, and is a textual form of the bytecodes
+that Parrot is running. PASM's syntax is very primitive, which is a pain to
+write, which is why Parrot has something called PIR.
+
+=item * PIR
+
+Stands for Parrot Intermediate Representation. This is a fancy layer of
+syntactic sugar on top of PASM. If you program Parrot natively, you
+write in PIR. Other documents discuss PIR syntax, for instance
+L<http://www.parrotcode.org/docs/pdd/pdd19_pir.html>.
+
+=item * PGE
+
+Stands for Parrot Grammar Engine, and is the regular expression engine of
+Parrot. It is written in PIR. Regular expressions in Perl 6 are more powerful
+than Perl 5's regexes, as you can write language grammars more easily. These
+C<regular expressions> are written in Perl 6 C<rules>.  See Perl 6 synopsis 5
+(S05, at L<http://dev.perl.org/perl6/doc/design/syn/S05.html>) for the syntax
+of Perl 6 rules.  A grammar is processed by PGE to create a language parser.
+The grammar can contain special tokens that look like C<{*}> and invoke a
+subroutine by the same name as the current rule. These invoked subroutines are
+commonly called C<actions>.
+
+=item * NQP
+
+Stands for Not Quite Perl, and is a I<subset> of Perl 6. Yeah, that's right,
+you can already program in Perl 6 today (well, if you're happy with a simpler
+version of the language). NQP is implemented in PIR. The reason for building
+NQP was that it makes writing the parse actions (see C<PGE>) a whole lot
+easier. Although PIR is a neat language, it's still quite primitive.
+
+=item * PAST
+
+PAST stands for Parrot Abstract Syntax Tree, and is a library of classes that
+define the nodes for abstract syntax trees. Typical node types are C<PAST::Val>
+representing literal values (such as 42, "Hello World", etc.) and C<PAST::Var>
+which represents variables (for instance when writing C<my $var;> in Perl 6).
+The parse actions discussed earlier can construct these PAST nodes, so that at
+the end of the parse, you have a complete abstract syntax tree representing the
+program you compiled.
+
+=item * POST
+
+Stands for Parrot Opcode Syntax Tree, and is another library of classes that
+define the nodes for so-called opcode syntax trees. For this beginner's guide
+you can forget about it, but at some point you'll see the term C<POST>.  Just
+forget about it for now.
+
+=back
+
+Now we discussed the most important acronyms, it's time to get up and running.
+
+=head2 Download and Build Parrot
+
+Get Parrot from L<http://www.parrot.org/download> and build it. If
+you're lucky and you have a fast computer, it should be done within 5 minutes.
+It's always useful to run the test suite by typing:
+
+ $ make test
+
+=head2 Generate a Language Stub
+
+There's a special script for newcomers: F<tools/dev/mk_language_shell.pl>.
+Invoke it from Parrot's root directory:
+
+ $ perl tools/dev/mk_language_shell I<language> I<location>
+
+For instance, if you want to create a language called C<Foo> in the directory
+C<languages/foo>, type:
+
+ $ perl tools/dev/mk_language_shell Foo languages/foo
+
+This will create a complete language that compiles out of the box.  You first 
+need to run the C<Configure.PL> Perl script to generate the C<Makefile>.  Then
+you can run C<make> and C<make test>.
+
+ $ cd languages/foo
+ $ perl Configure.pl
+ $ make
+ $ make test
+
+Yes, that's right, there's even a test file already created for you. This makes
+setting up the tests for your language very easy!
+
+The generated directories and files have the following structure:
+
+ foo/
+    /Configure.pl                # configuration script
+    /config/makefiles/root.in    # input for the Makefile generator
+                                 # as long as you don't add source files,
+                                 # there's no need to update this file.
+    /src/
+        /parser/
+               /actions.pm       # the language's grammar rules; a file
+               /grammar.pm       # containing the parse actions;
+               /grammar-oper.pg  # file containing a default operator table.
+
+        /builtins/
+                 /say.pir        # a file containing a built-in function
+
+        /pmc/
+                 /foo.pmc        # file defining vtable functions 
+
+        /ops/
+                 /foo.ops        # file defining opcodes 
+                                 # TODO: add more "standard library" routines here
+    /t/
+      /00-sanity.t               # a test file
+      /harness                   # file to set up the test framework
+                                 # more tests can be added here
+
+    /foo.pir                     # file containing the main routine
+    /README                      # an almost empty readme file
+    /STATUS                      # an almost empty status file
+    /MAINTAINER                  # a file for you to add your details to
+
+
+When you want to run a script through your language's compiler, (assuming
+you're in your language's directory, in this case F<languages/foo>) type:
+
+ $ ../../parrot foo.pbc file.foo
+
+You can give an command line option to your compiler which specifies what kind
+of output you want. This is the C<target> option:
+
+ $ ../../parrot foo.pbc --target=pir file.foo
+
+this will print the generated PIR instructions to stdout. Other options for the
+C<target> option are C<parse>, C<past>, and C<post>.
+
+=head2 Customize Your Language
+
+You probably have some language syntax in mind to implement.  Note that the
+grammar defined in the file C<languages/foo/src/parser/grammar.pg> and the
+parse actions in the file C<languages/foo/src/parser/actions.pm> are closely
+related (especially note the names of the action methods). It's very important
+to update the methods accordingly if you change the grammar rules.
+
+=head1 COMMON ERROR MESSAGES
+
+This section describes some common error messages and how to resolve them. This
+is a work in progress, so you might not find your issue/solution here. If you
+have anything new to add, please send a patch (or an email) to
+C<parrotbug@parrotcode.org>.
+
+=over 4
+
+=item * no result object
+
+This is the case when you try to retrieve the result object from a subrule, but
+the subrule's action didn't set a result object using the C<make> command.
+Check whether there's an action invocation token C<{*}> in the subrule and
+whether that subrule's action has a C<make> command.
+
+=back
+
+=head1 WHERE TO GO FROM HERE?
+
+=head2 Documents
+
+The following documents might be useful to learn more:
+
+=over 4
+
+=item * L<languages/squaak/doc/>
+
+This directory contains the Parrot Compiler Toolkit Tutorial, describing the
+implementation of a simple yet non-trivial language.
+
+=item * L<docs/past_building_blocks.pod>
+
+=item * L<docs/pdds/pdd26_past.pod>
+
+=item * L<docs/pdds/pdd19_pir.pod>
+
+=item * F<http://dev.perl.org/perl6/doc/design/syn/S05.html>
+
+=back
+
+=head2 Other Languages
+
+You can also have a look at some existing languages that are being developed
+using the PCT, all located in the C<languages> subdirectory of Parrot. These
+are: perl6 (commonly referred to as C<Rakudo>), lua (see the L<lua/pct>
+directory), ecmascript (a standardized C<JavaScript>), punie (Perl 1 on
+Parrot), pynie (Python on Parrot), and cardinal (Ruby on Parrot).
+
+=head2 IRC
+
+Everyday, a bunch of Parrot enthusiasts can be found on #parrot on
+irc.parrot.org. You're welcome to ask questions.
+
+=head1 SUGGESTIONS
+
+If you have suggestions, improvements, tips or complaints about this document,
+please send an email to C<parrot-dev@lists.parrot.org>.
+
+=cut

@@ -1,0 +1,255 @@
+# Copyright (C) 2001-2007, Parrot Foundation.
+# $Id$
+
+=head1 NAME
+
+docs/tests.pod - Testing Parrot
+
+=head1 A basic guide to writing and running tests for Parrot
+
+This is quick and dirty primer on to how the Parrot test suite is executed and
+to how new tests for Parrot should be written.  The testing system is liable to
+change in the future, but tests written following the guidelines below should be
+easy to port into a new test suite.
+
+=head1 How to test parrot
+
+The easy way to test parrot is running C<make test>. If you have updated your
+code recently and tests began failing, go for a C<make realclean> and recompile
+parrot before complaining.
+
+C<make languages-test> runs the test suite for most language implementations
+in the languages directory.
+
+=head2 Submitting smolder test results
+
+Parrot has a status page with smoke test results at
+L<http://smolder.plusthree.com/app/public_projects/details/8>.
+
+You can supply new tests results by just running C<make smoke>.  It will run the
+same tests as C<make test> would, but will upload the test results to the
+website.
+
+=head1 Location of the test files
+
+The parrot test files, the F<*.t> files, can be found in the F<t> directory.
+A quick overview over the subdirs in F<t> can be found in F<t/README>.
+
+The language implementations usually have their test files in F<languages/*/t>.
+
+New tests should be added to an existing F<*.t> file.  If a previously untested
+feature is tested, it might also make sense to create a new F<*.t> file. You
+may also see tests named like foo-old.t, which are Perl tests that are in the
+process of being translated to PIR.
+
+=head1 How to write a test
+
+Test scripts must emit text that conforms to the C<Test Anything Protocol>.
+Test scripts are currently usually written in PIR or Perl 5.  The Perl 5 module
+C<Parrot::Test> and the PIR module C<Test;More> help with writing tests.
+Writing tests in PIR is preferred, but there are some cases where the
+proper framework is not available. If you can, write your tests in PIR.
+
+The testing framework needs to know how many tests it should expect.  So the
+number of planned tests needs to be incremented when adding a new test. This
+is done near the top of a test file, in a line that looks like:
+
+  plan(42)
+
+in PIR tests and
+
+  use Parrot::Test tests => 8;
+
+for Perl 5 test scripts.
+
+=head2 Testing Parrot Assembler
+
+PASM tests are mostly used for testing ops.  Appropriate test files for basic
+ops are F<t/op/*.t>.  Polymorphic Containers are tested in F<t/pmc/*.t>.  Add
+the new test like this:
+
+    pasm_output_is(<<'CODE', <<'OUTPUT', "name for test");
+        *** a big chunk of assembler, eg:
+        print   1
+        print   "\n" # you can even comment it if it's obscure
+        end          # don't forget this...!
+    CODE
+    *** what you expect the output of the chunk to be, eg.
+    1
+    OUTPUT
+
+=head2 Testing Parrot Intermediate Representation
+
+Writing tests in B<PIR> is more convenient. This is done with
+C<pir_output_is> and friends.
+
+    pir_output_is(<<'CODE',<<'OUT','nothing useful');
+        .sub main :main
+            print "hi\n"
+        .end
+    CODE
+    hi
+    OUT
+
+=head2 Testing C source
+
+C source tests are usually located in F<t/src/*.t>.  A simple test looks like:
+
+    c_output_is(<<'CODE', <<'OUTPUT', "name for test");
+    #include <stdio.h>
+    #include "parrot/parrot.h"
+    #include "parrot/embed.h"
+
+    static opcode_t *the_test(Parrot_Interp, opcode_t *, opcode_t *);
+
+    int main(int argc, char* argv[]) {
+        Parrot_Interp interp;
+        interpreter = Parrot_new(NULL);
+
+        if (!interpreter)
+            return 1;
+
+        Parrot_run_native(interp, the_test);
+        printf("done\n");
+    fflush(stdout);
+        return 0;
+    }
+
+    static opcode_t*
+    the_test(PARROT_INTERP,
+        opcode_t *cur_op, opcode_t *start)
+    {
+        /* Your test goes here. */
+
+        return NULL;  /* always return NULL */
+    }
+    CODE
+    # Anything that might be output prior to "done".
+    done
+    OUTPUT
+
+Note that it's always a good idea to output "done" to confirm that the compiled
+code executed completely. When mixing C<printf> and C<Parrot_io_printf> always append
+a C<fflush(stdout);> after the former.
+
+=head2 Testing Perl5 components
+
+At the present time most, if not all, of the programs used to configure, build
+and install Parrot are written in Perl 5.  These programs take the form of
+program files (F<*.pl>) and Perl modules (F<*.pm>) holding subroutines and
+other variables imported into the program files.  Examples of such
+program files can be found under F<tools/>; examples of such Perl modules
+can be found under F<lib/Parrot/>.
+
+All of these Perl 5 components ought to be tested.  Fortunately, over the last
+decade, under the leadership of Michael Schwern, chromatic, Andy Lester and
+many others, the Perl 5 community has developed a rigorous approach to testing
+in which:
+
+=over 4
+
+=item a
+
+Subroutines found in F<*.pl> files are extracted and placed in F<*.pm>
+modules.
+
+=item b
+
+Those subroutines are then imported back into the program file.
+
+=item c
+
+Those subroutines are also imported into test files (F<*.t>) where are tests
+are run by Test::Builder-based modules such as Test::Simple and Test::More.
+
+=item d
+
+Those test files are run by Test::Harness-based functionality such as
+ExtUtils::MakeMaker's F<make test>, Module::Build's F<build test>, or
+Test::Harness's F<prove>.
+
+=item e
+
+The extent to which the test files exercise all statements in the Perl modules
+being tested is measured in coverage analysis using CPAN module Devel::Cover.
+
+=item f
+
+The underlying code is refactored and improved on the basis of the results of
+tests and coverage analysis.
+
+=back
+
+Tests reflecting this approach can be found in F<t/configure/>,
+F<t/postconfigure/>, F<t/tools/>, and so on.
+
+It is our objective to test all Perl 5 components of the Parrot distribution
+using the methodology above.
+
+=head3 Build Tools Tests
+
+The files in F<t/postconfigure> are tests for build system. The build tools
+tests are intended to be run after someone has made changes in modules such as
+F<lib/Parrot/Pmc2cUtils/>, F<Ops2cUtils/> and F<Ops2pmutils/>.  They're set up
+to be run after F<Configure.pl> has completed but before make has been invoked.
+(In fact, they will generate errors if make has completed.)  You can run them
+with any of the following:
+ 
+     perl Configure.pl --test
+     perl Configure.pl --test=build
+     make buildtools_tests  (following Configure.pl)
+
+=head2 Testing language implementations
+
+Language implementations are usually tested with 
+C<language_output_is> and friends.
+
+=head1 Ideal tests:
+
+=over 4
+
+=item *
+
+Probe the boundaries (including edge cases, errors thrown etc.) of whatever
+code they're testing.  These should include potentially out of band input
+unless we decide that compilers should check for this themselves.
+
+=item *
+
+Are small and self contained, so that if the tested feature breaks we can
+identify where and why quickly.
+
+=item *
+
+Are valid. Essentially, they should conform to the additional documentation
+that accompanies the feature (if any). [If there isn't any documentation, then
+feel free to add some and/or complain to the mailing list].
+
+=item *
+
+Are a chunk of assembler and a chunk of expected output.
+
+=back
+
+=head1 TODO tests
+
+In test driven development, tests are implemented first.  So the tests are
+initially expected to fail.  This can be expressed by marking the tests as
+TODO. See L<Test::More> on how to do that.
+
+=head1 SKIP tests
+
+TODO test actually executed, so that unexpected success can be detected.
+In the case of missing requirements and in the case of serious breakdowns
+the execution of tests can be skipped.
+See L<Test::More> on how to do that.
+
+=head1 SEE ALSO
+
+L<http://qa.perl.org/>
+L<http://testanything.org/>
+L<http://en.wikipedia.org/wiki/Test_Anything_Protocol>
+F<t/TESTS.STATUS.pod>
+F<t/README>
+
+=cut

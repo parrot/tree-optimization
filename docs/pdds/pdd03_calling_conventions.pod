@@ -1,0 +1,403 @@
+# Copyright (C) 2001-2010, Parrot Foundation.
+# $Id$
+
+=head1 PDD 3: Calling Conventions
+
+=head2 Abstract
+
+Parrot's inter-routine calling conventions.
+
+=head2 Version
+
+$Revision$
+
+=head2 Synopsis
+
+Not applicable.
+
+=head2 Description
+
+This document describes how to pass arguments from registers to subroutines,
+and how subroutines can extract their parameters into registers for use.
+
+Since Parrot's calling conventions are continuation-based, there is arguably
+very little difference between a call and a return. Because of this, the
+conversion rules are the same regardless of whether code is invoking a
+subroutine or a return continuation.
+
+=head3 Common Features of Argument/Return Opcodes
+
+There are four opcodes involved in parameter and return value propagation:
+
+=over 4
+
+=item *
+
+C<set_args>, for passing arguments;
+
+=item *
+
+C<set_returns>, for returning values;
+
+=item *
+
+C<get_params>, for accepting parameters; and
+
+=item *
+
+C<get_results>, for accepting return values.
+
+=back
+
+FAQ: Given Parrot's internal use of continuation-passing style ["CPS"], it
+would be possible to use one pair of opcodes for both call and return, since
+under CPS returns I<are> calls.  And perhaps someday we will have only two
+opcodes.  But for now, certain efficiency hacks are easier with four opcodes.
+
+The common syntax of these opcodes is:
+
+ <set_opcode> "flags0, flags1, ..., flagsN", VAL0, VAL1, ... VALN
+ <get_opcode> "flags0, flags1, ..., flagsN", REG0, REG1, ... REGN
+ <get_opcode> "..., 0x200, flags0, ...", ..., "name", REG0, ...
+
+The flags string is a literal quoted string denoting a list of zero or more
+comma-separated integers.  Integers may be specified either in decimal, or if
+prefixed with "0b"/"0x", in binary/hexadecimal.  There must be exactly one
+integer for each value or register given.
+
+For documentation purposes we'll number the bits 0 (low) through 30 (high).
+Bit 31 (and higher, where available) will not be used.
+
+Some values and registers do not correspond directly to values passed or
+received.  (See the descriptions of the OPT_FLAG and NAMED bits, below.)
+
+=head4 Flag Words; Common Flag Word Bits
+
+Each integer in the flag string controls the processing of the corresponding
+value or register.
+
+These bits of each flag word have common meanings for all argument/
+return-value opcodes:
+
+    0-3   TYPE
+               0b0000 = I
+               0b0001 = S
+               0b0010 = P
+               0b0011 = N
+
+Don't set these bits yourself; the assembler will do it.
+
+=head3 Passing Arguments, Returning Values
+
+Just before calling a subroutine with C<invokecc> or calling a method with
+C<call_methodcc>, use the C<set_args> opcode to tell Parrot where the
+subroutine's or method's arguments will come from and how they should be
+expanded by the target.
+
+Similarly, just before returning from such a subroutine or method, use
+the C<set_returns> opcode to tell Parrot where the return values will
+come from and how to expand them for the caller's use.
+
+=head4 Flag Word Bits For 'Setting'
+
+These bits of each flag word have these meanings specific to C<set_args> and
+C<set_returns>:
+
+=over 4
+
+=item 4     C<CONSTANT>
+
+The value is a literal constant, not a register.  (Don't set this bit
+yourself; the assembler will do it.)
+
+=item 5     C<FLAT> (P only)
+
+If this bit is set on a PMC value, then the PMC must be an aggregate.  The
+contents of the aggregate, rather than the aggregate itself, will be passed.
+
+If the C<NAMED> bit is also set, the aggregate will be used as a hash; its
+contents, as key/value pairs, will be passed as named arguments.  The PMC
+must implement the full hash interface.  {{ TT #1288: Limit the required
+interface. }}
+
+If the C<NAMED> bit is not set, the aggregate will be used as an array; its
+contents will be passed as positional arguments.
+
+The meaning of this bit is undefined when applied to integer, number, and
+string values.
+
+=item 6     (unused)
+
+=item 7     (unused)
+
+=item 8     (unused)
+
+=item 9     C<NAMED> (C<FLAT> or string constant only)
+
+When the FLAT bit is also set, behavior is as described above in the "FLAT"
+section.  Otherwise, this bit may only be set on a unique string constant
+specifying the name of the next argument (or returned value).
+
+=back
+
+=head3 Accepting Parameters, Accepting Return Values
+
+As the I<first opcode> in a subroutine that will be called with
+C<invokecc> or a method that will be called with C<call_methodcc>, use
+the C<get_params> opcode to tell Parrot where the subroutine's or
+method's arguments should be stored and how they should be expanded.
+
+Similarly, just I<before> (yes, I<before>) calling such a subroutine or
+method, use the C<get_results> opcode to tell Parrot where the return
+values should be stored and how to expand them for your use.
+
+NOTE: It should be obvious, but in case it's not: You must name only registers
+as targets of these opcodes, not constants.  (You can't store anything into a
+constant.  That would make it a variable.)
+
+=head4 Flag Word Bits For 'Getting'
+
+These bits of each flag word have these meanings specific to C<get_params> and
+C<get_results>:
+
+=over 4
+
+=item 4     (unused)
+
+=item 5     C<SLURPY> (P only)
+
+If this bit is set on a P register, then it will be populated with an
+aggregate that will contain all of the remaining values that have not already
+been stored in other registers.
+
+All such values will be converted to PMCs according to the detailed rules
+below, and those PMCs will be stored into the new aggregate.
+
+If the C<NAMED> bit is also set, the aggregate will be the HLL-specific hash
+type and the contents will be all unassigned _named_ arguments.
+
+If the C<NAMED> bit is not set, the aggregate will be the HLL-specific array
+type and the contents will be all unassigned positional arguments.
+
+=item 6     (unused)
+
+=item 7     C<OPTIONAL>
+
+If this bit is set on a register for which no value has been passed, no
+exception will be raised; rather, the register will be set to a default value:
+a Null PMC for P, an empty string for S, or zero for N or I.
+
+=item 8     C<OPT_FLAG> (I only)
+
+An I register with this bit set is set to one if the immediately preceding
+B<OPTIONAL> register received a value; otherwise, it is set to zero.  If the
+preceding register was not marked B<OPTIONAL>, the behavior is undefined; but
+we promise you won't like it.
+
+=item 8     C<READONLY> (P only)
+
+I<XXX - PROPOSED ONLY - XXX>
+
+If this bit is set on a P register that receives a value, Parrot will ensure
+that the final value in the P register is read-only (i.e. will not permit
+modification).  If the received value was a mutable PMC, then Parrot will
+create and set the register to a {not yet invented} read-only PMC wrapper
+around the original PMC.
+
+Future Notes: Parrot's algorithm for deciding what is writable may be
+simplistic.  In initial implementations, it may assume that any PMC not of a
+known read-only-wrapper type is mutable.  Later it may allow the HLL to
+provide the test.  But we must beware overdesigning this; any HLL with a truly
+complex notion of read-only probably needs to do this kind of wrapping itself.
+
+=item 8     (unused for S and N)
+
+=item 9     C<NAMED> (C<SLURPY> or string constant only)
+
+When the SLURPY bit is also set, behavior is as described above in the
+"SLURPY" section.  Otherwise, this bit may only be set on a unique string
+constant specifying the name of the next parameter (or returned value).
+
+=back
+
+=head4 Overflow and underflow
+
+If too many or too few values are provided for the given target registers,
+Parrot by default will throw an exception for C<get_params>, but not for
+C<get_results>.  This error behavior can be controlled via the C<errorson> and
+C<errorsoff> opcodes using C<PARROT_ERRORS_PARAM_COUNT_FLAG> for C<get_params>
+and C<PARROT_ERRORS_RESULT_COUNT_FLAG> for C<get_results>.  (It is not
+possible to control underflow behavior separately from overflow.)
+
+Note that if the final target is a P register with FLAT set, then overflow can
+never occur.  Similarly, if all target registers are marked B<OPTIONAL>, then
+underflow is impossible.
+
+Note also that when these errors are off, any excess destination registers in
+the case of underflow are left untouched, rather than being reset to zero or
+null.  Excess registers explicitly marked B<OPTIONAL> are always reset,
+regardless of the error flag settings.
+
+=head4 Ordering of named values (outgoing)
+
+Named values (arguments, or values to return) must be listed textually after
+all the positional values.  C<FLAT> and non-C<FLAT> values may be mixed in any
+order.
+
+=head4 Ordering of named targets (incoming)
+
+Named targets (parameters, or returned values) must appear I<after> all the
+positional targets.  A C<SLURPY> positional target, if present, must be the
+last positional target; a C<SLURPY> named target, if present, must be the last
+named target.
+
+So the acceptable ordering of targets is:
+
+=over 4
+
+=item *
+
+positional non-SLURPY    (any number)
+
+=item *
+
+positional SLURPY array  (optional)
+
+=item *
+
+NAMED non-SLURPY         (any number)
+
+=item *
+
+NAMED SLURPY hash        (optional)
+
+=back
+
+=head4 Mixing named and positional values
+
+Positional targets can only be filled with positional values.
+
+Named targets can be filled with either positional or named values.
+However, if a named target was already filled by a positional value, and
+then a named value is also given, this is an overflow error.
+
+=head4 Type Conversions
+
+Unlike the C<set_*> opcodes, the C<get_*> opcodes must perform conversion from
+one register type to another.  Here are the conversion rules:
+
+=over 4
+
+=item *
+
+When the target is an I, N, or S register, storage will behave like an
+C<assign> (standard conversion).
+
+=item *
+
+When the target and source are both P registers, storage will behave like a
+C<set> (pass by reference).
+
+=item *
+
+When the target is a P register and the source is an integer, the P will be
+set to a new Integer[1] which has been C<assign>ed the given integer.
+
+=item *
+
+When the target is a P register and the source is a number, the P will be set
+to a new Float[1] which has been C<assign>ed the given number.
+
+=item *
+
+When the target is a P register and the source is a string, the P will be set
+to a new String[1] which has been C<assign>ed the given string.
+
+=back
+
+[1] or some other type specified by the current HLL type map, which may
+substitute an alternative type for each default low-level Parrot type (array,
+hash, string, number, etc.).
+
+=head2 Implementation
+
+Not applicable.
+
+=head2 Bugs
+
+Required features are missing:
+
+=over 4
+
+=item *
+
+Specific exceptions to throw for specific errors.
+
+=back
+
+=head2 PIR Syntax Examples
+
+=head3 Function Calls
+
+=begin PIR_FRAGMENT_INVALID
+
+  .local pmc foo, i, ar, y, p, value, kw, a, b, c, z
+  # ...
+  foo(1, i)                       # 2 positional arguments
+  foo(x, ar :flat, y)             # flattening array
+  foo(p, 'key' => value)          # named argument
+  foo(p, value :named('key'))     # the same
+  foo(kw :named :flat)            # a flattening hash
+
+  # all together now: three positional (one flat) with two named (one flat)
+  foo(a, b, c :flat, 'x' => 3, 'y' => 4, z :flat :named('z'))
+
+=end PIR_FRAGMENT_INVALID
+
+=head3 Parameters
+
+=begin PIR
+
+  .sub foo 
+    .param int i                    # positional parameter
+    .param pmc argv :slurpy         # slurpy array
+    .param pmc value :named('key')  # named parameter
+    .param int x :optional          # optional parameter
+    .param int has_x :opt_flag      # flag 0/1 x was passed
+    .param pmc kw :slurpy :named    # slurpy hash
+    # ...
+  .end
+
+=end PIR
+
+=head3 Return Values
+
+=begin PIR_INVALID
+
+  .sub foo
+    .local pmc i, ar, value
+    .return (i, ar: flat, value :named('key') )
+  .end
+
+=end PIR_INVALID
+
+=head3 Call Results
+
+=begin PIR_FRAGMENT
+
+  .local pmc x, foo, i, j, ar, value
+  x = foo()                       # single result
+  (i, j :optional, ar :slurpy, value :named('key') ) = foo()
+
+=end PIR_FRAGMENT
+
+=head2 References
+
+F<pdd23_exceptions.pod>
+
+=cut
+
+__END__
+Local Variables:
+  fill-column:78
+End:

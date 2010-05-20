@@ -1,0 +1,214 @@
+# Copyright (C) 2001-2009, Parrot Foundation.
+# $Id$
+
+=head1 NAME
+
+docs/gettingstarted.pod - Parrot Developer FAQ
+
+=head1 DEVELOPER FAQ
+
+=head2 I'm interested in helping out. What should I do?
+
+You're already on the right track. This FAQ should help you find everything you
+need to become an active member of the Parrot community. Just look through the
+questions below and read the ones that apply to you.
+
+More current information is also available at
+L<https://trac.parrot.org/parrot/wiki/NewParrotDeveloperGuide>.
+
+=head2 Where can I get Parrot?
+
+=over 4
+
+=item *
+
+There is a web interface to the subversion repository, in case you just want to
+browse the source.
+
+L<https://trac.parrot.org/parrot/browser>
+
+=item *
+
+The easiest solution is to grab the latest monthly development release. You can
+find it here:
+
+L<http://www.parrot.org/release/current>
+
+=item *
+
+An even better option is to use SVN, which gets you the very latest copy of the
+Parrot distribution. The procedure for this is:
+
+    svn checkout https://svn.parrot.org/parrot/trunk parrot
+
+=item *
+
+If you're using git-svn, you should check out just the latest version. First:
+
+C<< git svn clone -s -r HEAD https://svn.parrot.org/parrot >>
+
+=back
+
+The above instructions are also on the Parrot website:
+
+L<http://www.parrot.org/download>
+
+=head2 Now that I've got Parrot, what do I do?
+
+Now that you've downloaded Parrot, you probably want to try it out. All you
+need is Perl 5.8.0 or later, a C compiler (any ANSI C compliant compiler
+should do - if you find one that doesn't work, please report it to us), and
+some reasonable form of C<make>. To do this, follow these three easy steps.
+
+=over 4
+
+=item 1
+
+C<cd> to your parrot directory and run C<Configure.pl> to create the makefile
+for your platform.
+
+=item 2
+
+Run C<make> to compile everything and build parrot.
+
+=item 3
+
+Run C<make test> to run the test suite and verify that everything works on
+your system.
+
+=back
+
+
+
+=head2 Where's the Parrot documentation?
+
+Well, Parrot documentation is a great place to contribute, should you be
+looking for something to do. Figure out which parts were confusing, and either
+help us fix them, or let us know where we should fix them. Luckily, all of the
+current Parrot documentation is included along with the Parrot distribution, in
+the /docs/ directory.
+
+There is also some experimental auto-generated HTML documentation available by
+running the following command in the Parrot distribution's root directory:
+
+    % make html
+
+To view the HTML documentation start with the page F<docs/html/index.html>.
+
+There are a few categories of documentation, each with different intents. It'll
+probably help to be aware of them before you go digging in. I highly suggest
+you check out F</docs/pdds/pdd07_codingstd.pod> for guidelines on how
+documentation is supposed to be laid out. For now, here's the executive
+summary:
+
+=over 4
+
+=item * PDDs
+
+Parrot Design Documents (PDDs) document the basic design of the Parrot
+interpreter, with each PDD focusing on a particular topic, such as the design
+of the garbage collector (PDD 09) or the object system (PDD 15). They can be
+found in the F</docs/pdds> directory.
+
+NB: Some important areas are still missing PDDs; we're working to rectify that.
+
+=item * Developer files
+
+These are files which correspond to a specific source file, and can be found in
+F</docs/dev/>. A developer file contains documentation on all the
+implementation decisions associated with the source file. (Note that this is in
+contrast to PDDs, which describe design decisions). This is the place for
+mini-essays on how to avoid overflows in unsigned arithmetic, or on the pros
+and cons of differing hash algorithms, and why the current one was chosen, and
+how it works.
+
+If you are coming to a particular source file for the first time, you should
+be able to read the developer file and gain an immediate overview of what
+the source file is for, the algorithms it implements, etc.
+
+NB: We need more developer files too. Patches welcome!
+
+=item * Source file documentation
+
+Each source file includes comments embedded in the document. Usually this means
+function-level documentation that describes the purpose and intent of a
+function, along with any other important information. For larger functions, it
+will include additional documentation that explains the meaning of code, as
+opposed to a verbatim translation of code.
+
+=back
+
+=head2 Where can I find the main developer mailing list?
+
+Most of the Parrot-related development discussion occurs on the
+parrot-dev (previously known as parrot-porters and perl6-internals) mailing
+list. There are a variety of interfaces to the list:
+
+=over 4
+
+=item * Developer Mailing List Interface (subscribing, unsubscribing, etc)
+
+L<http://lists.parrot.org/mailman/listinfo/parrot-dev>
+
+=item * Parrot NNTP Interface
+
+L<nntp://news.gmane.org/gmane.comp.compilers.parrot.devel>
+
+=item * Parrot Archives, RSS
+
+L<http://groups.google.com/group/parrot-dev> provides archives, search,
+and RSS feeds.
+
+L<http://news.gmane.org/gmane.comp.compilers.parrot.devel>
+
+L<http://lists.parrot.org/pipermail/parrot-dev/>
+
+=back
+
+In addition, there is a mailing list which logs all commits to the Parrot SVN
+repository. If you're interested in Parrot development, you might find it very
+helpful to subscribe and keep up on changes that people are making.
+
+=over 4
+
+=item * Mailing List Interface (subscribing, unsubscribing, etc)
+
+L<http://lists.parrot.org/mailman/listinfo/parrot-commits>
+
+=item * Parrot Commits NNTP Interface
+
+L<...>
+
+L<...>
+
+=item * Commit List Archives, RSS
+
+L<...>
+
+L<http://lists.parrot.org/pipermail/parrot-commits/>
+
+=back
+
+
+=head2 What other ways can I get in contact with the Parrot developers?
+
+The mailing list is the main resource for Parrot development. However, there
+is an IRC channel which you may find useful if your problem is better solved
+with real-time discussion.  Visit the channel #parrot on the IRC
+server L<irc.parrot.org>.  Alternative IRC servers are
+L<irc.rhizomatic.net> and L<irc.pobox.com>.
+
+
+
+=head2 I've developed a patch. What should I do with it?
+
+See F<docs/submissions.pod> for details.
+
+=head2 I've found a bug, what now?
+
+See F<docs/submissions.pod> for details.
+
+=head2 What other useful resources are there for developers?
+
+A number of other useful resources that can be found via on the Parrot
+wiki, located at L<http://trac.parrot.org/parrot/wiki>.

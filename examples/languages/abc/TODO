@@ -1,0 +1,9 @@
+Statements:
+
+* break -- This statement causes a forced exit of the most recent enclosing
+while statement or for statement.
+* continue -- The continue statement (an extension) causes the most recent
+enclosing for statement to start the next iteration.
+* halt -- TODO? (extension)
+* return -- Return  the  value  of the expression from a function.
+

@@ -1,0 +1,208 @@
+/*
+Copyright (C) 2001-2007, Parrot Foundation.
+$Id$
+
+=head1 NAME
+
+src/pmc/pointer.pmc - Pointer
+
+=head1 DESCRIPTION
+
+These are the vtable functions for the Pointer base class.
+
+The actual pointer is in C<PMC_data>.
+
+=head2 Methods
+
+=over 4
+
+=cut
+
+*/
+
+/* HEADERIZER HFILE: none */
+/* HEADERIZER BEGIN: static */
+/* HEADERIZER END: static */
+
+pmclass Pointer auto_attrs {
+    ATTR void * mark_function;
+    ATTR void * pointer;
+
+/*
+
+=item C<void init()>
+
+Initializes the pointer.
+
+=cut
+
+*/
+
+    VTABLE void init() {
+        PObj_custom_mark_SET(SELF);
+    }
+
+/*
+
+=item C<void mark()>
+
+Marks the pointer as live.
+
+=cut
+
+*/
+
+    VTABLE void mark() {
+        void (*mark_function)(Interp *, void *) =
+            (void (*)(Interp *, void *))D2FPTR(PARROT_POINTER(SELF)->mark_function);
+        void * data = PARROT_POINTER(SELF)->pointer;
+        if (data && mark_function)
+            (*mark_function)(INTERP, data);
+    }
+
+/*
+
+=item C<PMC *clone()>
+
+Creates and returns a clone of the pointer.
+
+=cut
+
+*/
+
+    VTABLE PMC *clone() {
+        PMC * const dest = Parrot_pmc_new_noinit(INTERP, SELF->vtable->base_type);
+        PObj_custom_mark_SET(dest);
+        PMC_data(dest) = PMC_data(SELF);
+        return dest;
+    }
+
+/*
+
+=item C<void set_pointer(void *)>
+
+Sets the pointer value.
+
+=cut
+
+*/
+
+    VTABLE void set_pointer(void *ptr) {
+        PARROT_POINTER(SELF)->pointer = ptr;
+    }
+
+/*
+
+=item C<void *get_pointer()>
+
+Returns the pointer value.
+
+=cut
+
+*/
+
+    VTABLE void *get_pointer() {
+        return PARROT_POINTER(SELF)->pointer;
+    }
+
+/*
+
+=item C<INTVAL get_integer()>
+
+Returns the pointer value as an integer.
+
+=cut
+
+*/
+
+    VTABLE INTVAL get_integer() {
+        return (INTVAL)(PARROT_POINTER(SELF)->pointer);
+    }
+
+/*
+
+=item C<FLOATVAL get_number()>
+
+Returns the pointer value as a floating-point number.
+
+=cut
+
+*/
+
+    VTABLE FLOATVAL get_number() {
+        return (FLOATVAL)(INTVAL)(PARROT_POINTER(SELF)->pointer);
+    }
+
+/*
+
+=item C<STRING *get_repr()>
+
+Returns the pointer value as a Parrot string.
+
+=cut
+
+*/
+
+    VTABLE STRING *get_repr() {
+        return Parrot_sprintf_c(INTERP, "Pointer = 0x%p", PARROT_POINTER(SELF)->pointer);
+    }
+
+
+/*
+
+=item C<STRING *get_string()>
+
+Returns the pointer value as a Parrot string.
+
+=cut
+
+*/
+
+    VTABLE STRING *get_string() {
+        return Parrot_sprintf_c(INTERP, "%s", PARROT_POINTER(SELF)->pointer);
+    }
+
+/*
+
+=item C<INTVAL get_bool()>
+
+Returns whether the pointer is not C<NULL>.
+
+=cut
+
+*/
+
+    VTABLE INTVAL get_bool() {
+        return (INTVAL)(PMC_data(SELF) != NULL);
+    }
+
+/*
+
+=item C<INTVAL is_same(PMC *pmc2)>
+
+Returns whether the pointer has the same value as C<*pmc2>.
+
+=cut
+
+*/
+
+    VTABLE INTVAL is_same(PMC *pmc2) {
+        return (INTVAL)(SELF->vtable   == pmc2->vtable &&
+                        PARROT_POINTER(SELF)->pointer == PARROT_POINTER(pmc2)->pointer);
+    }
+}
+
+/*
+
+=back
+
+=cut
+
+*/
+
+/*
+ * Local variables:
+ *   c-file-style: "parrot"
+ * End:
+ * vim: expandtab shiftwidth=4:
+ */

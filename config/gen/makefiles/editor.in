@@ -1,0 +1,77 @@
+# Copyright (C) 2005-2009, Parrot Foundation.
+# $Id$
+
+#IF(win32):VIM_DIR     = $(USERPROFILE)/vimfiles
+#ELSE:VIM_DIR     = $(HOME)/.vim
+VIM_FT_DIR  = $(VIM_DIR)/plugin
+VIM_IN_DIR  = $(VIM_DIR)/indent
+VIM_SYN_DIR = $(VIM_DIR)/syntax
+
+PARROT = ../parrot@exe@
+PERL   = @perl@
+CP     = @cp@
+MKPATH = @mkpath@
+RM_F   = @rm_f@
+
+default: all
+
+all: pir.vim imc.kate skeleton.pir
+
+# This is a listing of all targets, that are meant to be called by users
+help :
+	@echo ""
+	@echo "Following targets are available for the user:"
+	@echo ""
+	@echo "  all:               generate imc.vim and imc.kate but do not install it"
+	@echo "                     This is the default."
+	@echo "  vim-install:       Install syntax files for the magnificent vim"
+	@echo "  vim-uninstall:     Uninstall syntax files for vim"
+	@echo "  imc.kate:          Syntax file for Kate"
+	@echo ""
+	@echo "Cleaning:"
+	@echo "  clean:             clean up local files"
+	@echo "  realclean:         clean up local files including Makefile"
+	@echo ""
+
+pir.vim: pir_vim.in ../src/ops/*.ops ops2vim.pl
+	$(CP) pir_vim.in pir.vim
+	$(PERL) ops2vim.pl ../src/ops/*.ops >> pir.vim
+
+skeleton.pir: mk_skeleton.pir
+	$(PARROT) mk_skeleton.pir > skeleton.pir
+
+vim-install: pir.vim skeleton.pir
+	$(MKPATH) "$(VIM_DIR)"
+	$(CP) skeleton.pir "$(VIM_DIR)"
+	$(MKPATH) "$(VIM_SYN_DIR)"
+	$(CP) pir.vim "$(VIM_SYN_DIR)"
+	$(CP) pasm.vim "$(VIM_SYN_DIR)"
+	$(CP) pmc.vim "$(VIM_SYN_DIR)"
+	$(MKPATH) "$(VIM_FT_DIR)"
+	$(CP) filetype_parrot.vim "$(VIM_FT_DIR)/parrot.vim"
+	$(MKPATH) "$(VIM_IN_DIR)"
+	$(CP) indent_pir.vim "$(VIM_IN_DIR)/pir.vim"
+
+imc.kate: imcc.xml
+
+imcc.xml:
+	$(PERL) kate_syntax.pl '../' > imcc.xml
+
+vim-uninstall:
+	$(RM_F) "$(VIM_SYN_DIR)/pir.vim"
+	$(RM_F) "$(VIM_SYN_DIR)/pasm.vim"
+	$(RM_F) "$(VIM_SYN_DIR)/pmc.vim"
+	$(RM_F) "$(VIM_FT_DIR)/parrot.vim"
+	$(RM_F) "$(VIM_IN_DIR)/pir.vim"
+
+clean:
+	$(RM_F) pir.vim
+	$(RM_F) imcc.xml
+
+realclean: clean
+	$(RM_F) Makefile
+
+# Local variables:
+#   mode: makefile
+# End:
+# vim: ft=make:

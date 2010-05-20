@@ -1,0 +1,231 @@
+/*
+Copyright (C) 2001-2009, Parrot Foundation.
+$Id$
+
+=head1 NAME
+
+src/pmc/iterator.pmc - Iterator PMC
+
+=head1 DESCRIPTION
+
+These are the vtable functions for the Iterator base class. Iterators are
+used in combination with other classes(mainly aggregates) to visit all entries
+in that aggregate.
+
+=head1 SYNOPSIS
+
+=head2 default usage
+
+    .local pmc iterator, array, entry
+    iterator = iter array
+  iter_loop:
+    unless iterator, iter_end  # while (more values)
+    entry = shift iterator     # get an entry
+    ...
+    goto iter_loop
+  iter_end:
+
+=head2 iterate from the end, for arrays
+
+    .local pmc iterator, array, entry
+    iterator = iter array
+    iterator = .ITERATE_FROM_END
+  iter_loop:
+    unless iterator, iter_end  # while (more values)
+    entry = pop iterator     # get an entry
+    ...
+    goto iter_loop
+  iter_end:
+
+=head2 iterate over a hash
+
+    .local pmc iterator, hash, key, entry
+    iterator = iter hash
+  iter_loop:
+    unless iterator, iter_end  # while (more values)
+    key   = shift iterator     # get the key..
+    entry = hash[key]
+    ...
+    goto iter_loop
+  iter_end:
+
+=head1 Methods
+
+=over 4
+
+=cut
+
+*/
+
+/* HEADERIZER HFILE: none */
+/* HEADERIZER BEGIN: static */
+/* HEADERIZER END: static */
+
+pmclass Iterator no_ro {
+
+/*
+
+=item C<void init()>
+
+Raises an exception. Use C<init_pmc()>.
+
+=cut
+
+*/
+
+    VTABLE void init() {
+        Parrot_ex_throw_from_c_args(INTERP, NULL, EXCEPTION_INVALID_OPERATION,
+                "Iterator init without aggregate");
+    }
+
+/*
+
+=item C<void init_pmc(PMC *initializer)>
+
+Initializes the iterator with an aggregate PMC.
+Defaults iteration mode to iterate from start.
+
+=cut
+
+*/
+
+    VTABLE void init_pmc(PMC *aggregate) {
+        Parrot_ex_throw_from_c_args(INTERP, NULL, EXCEPTION_INVALID_OPERATION,
+                "Direct creation of Iterator");
+    }
+
+
+/*
+
+=item C<INTVAL get_integer_keyed(PMC *key)>
+
+=cut
+
+*/
+
+    VTABLE INTVAL get_integer_keyed(PMC *key) {
+        return VTABLE_get_integer_keyed(INTERP, SELF.get_pmc(), key);
+    }
+
+/*
+
+=item C<FLOATVAL get_number_keyed(PMC *key)>
+
+=cut
+
+*/
+
+    VTABLE FLOATVAL get_number_keyed(PMC *key) {
+        return VTABLE_get_number_keyed(INTERP, SELF.get_pmc(), key);
+    }
+
+
+/*
+
+=item C<STRING *get_string_keyed(PMC *key)>
+
+=cut
+
+*/
+
+    VTABLE STRING *get_string_keyed(PMC *key) {
+        return VTABLE_get_string_keyed(INTERP, SELF.get_pmc(), key);
+    }
+
+/*
+=item C<PMC *get_pmc_keyed(PMC *key)>
+
+Returns the element for C<*key>.
+
+=cut
+
+*/
+
+    VTABLE PMC *get_pmc_keyed(PMC *key) {
+        return VTABLE_get_pmc_keyed(INTERP, SELF.get_pmc(), key);
+    }
+
+/*
+
+=item C<INTVAL exists_keyed(PMC *key)>
+
+Returns whether an element for C<*key> exists in the aggregate.
+
+=cut
+
+*/
+
+    VTABLE INTVAL exists_keyed(PMC *key) {
+        return VTABLE_exists_keyed(INTERP, SELF.get_pmc(), key);
+    }
+
+/*
+
+=item C<INTVAL defined()>
+
+Returns whether the iterator contains an aggregate.
+
+=cut
+
+*/
+
+    VTABLE INTVAL defined() {
+        return (INTVAL)(SELF.get_pmc() != PMCNULL);
+    }
+
+/*
+
+=item C<INTVAL defined_keyed(PMC *key)>
+
+=cut
+
+*/
+
+    VTABLE INTVAL defined_keyed(PMC *key) {
+        return VTABLE_defined_keyed(INTERP, SELF.get_pmc(), key);
+    }
+
+
+    VTABLE PMC *get_iter() {
+        return SELF;
+    }
+
+    /* Make the shift_pmc vtable function available as
+     * a method named "next" */
+     METHOD next() {
+        PMC * const next = VTABLE_shift_pmc(INTERP, SELF);
+        RETURN(PMC* next);
+     }
+
+/*
+
+=item C<void set_integer_native(INTVAL value)>
+
+Restart iterator
+
+=cut
+
+*/
+    VTABLE void set_integer_native(INTVAL value) {
+        PMC *self = SELF;
+        PARROT_FAILURE("Iterator: implementation have to override this method");
+
+        Parrot_ex_throw_from_c_args(INTERP, NULL, EXCEPTION_UNIMPLEMENTED,
+                "Iterator: unimplemented method");
+    }
+}
+
+/*
+
+=back
+
+=cut
+
+*/
+
+/*
+ * Local variables:
+ *   c-file-style: "parrot"
+ * End:
+ * vim: expandtab shiftwidth=4:
+ */

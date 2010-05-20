@@ -1,0 +1,43 @@
+# Copyright (C) 2005-2007, Parrot Foundation.
+# $Id$
+
+=head1 NAME
+
+extend.pod - Parrot extension system
+
+=head1 SYNOPSIS 
+
+    #include "parrot/extend.h"
+
+    int main(int argc, char *argv[]) {
+    }
+
+=head1 FILES
+
+=over 4
+
+=item F<include/parrot/extend.h>
+
+=item F<extend.c>
+
+=back
+
+=head1 DESCRIPTION
+
+=head2 Data Structures
+
+TODO
+
+=head2 Constants
+
+TODO
+
+=head2 Functions
+
+TODO
+
+=head1 SEE ALSO
+
+F<extend.c> and F<extend.h> for the implementation.
+
+=cut

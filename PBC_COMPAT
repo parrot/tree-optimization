@@ -1,0 +1,53 @@
+# This file shows the history of incompatible changes to
+# Parrot that invalidated existing PBC (Parrot Byte Code) files.
+#
+# The latest version number of the bytecode format in this file
+# is used by Parrot to version the bytecode files it writes and
+# is able to read. In the future, Parrot should be able to read
+# and/or write older bytecode versions too.
+#
+# Currently known actions that should be entered here
+#   (and invalidate PBC are):
+#
+# - deleting/changing/inserting existing ops in ops.num
+# - changing operands of existing ops
+# - adding/deleting/renaming a PMC to classes
+# - changes in the packfile format itself
+# - changes to any PMCs that are frozen into the .pbc like
+#   ParrotInterpreter (HLL_info), Subs and more
+# - other core changes that invalidate byte code :)
+#
+# After changing PBC_COMPAT either disable t/native_pbc tests or
+# better, if you have an i386 box at hand, regenerate the PBCs
+# with tools/dev/mk_native_pbc and commit the changes
+
+# TODO TT #361: all .pbc files should make-depend on PBC_COMPAT
+
+# Also, if you're removing an opcode, be sure to run "make opsrenumber"
+
+# please insert tab separated entries at the top of the list
+
+6.16	2010.05.18	plobsing	move freeze/thaw adjacent to visit
+6.15	2010.05.06	bacek	add StringBuilder PMC
+6.14	2010.05.03	coke	remove popaction, pushmark, pushaction ops.
+6.13	2010.05.03	coke	move File/OS pmcs to src/dynpmc
+6.12	2010.05.02	plobsing	store constant PMC strings as top level constant strings    
+6.11	2010.04.29	tewk	remove ParrotRunningThread
+6.10	2010.04.29	NotFound	packfiledebug.pmc
+6.9	2010.04.27	bacek	remove deprecated in-place string ops (bitwise, charset, case change)
+6.8	2010.04.27	bacek	remove deprecated in-place substr ops
+6.7	2010.04.22	coke	remove RetContinuation PMC
+6.6	2010.04.17	bacek	add replace op
+6.5	2010.03.09	cotto	remove cpu_ret op
+6.4	2010.03.02	cotto	remove prederef__ and reserved
+6.3	2010.02.16	whiteknight	Add OpLib and Opcode PMCs
+6.2	2010.01.31	cotto	serialization-related changes to ParrotInterpreter
+6.1	2010.01.30	whiteknight	remove Array PMC
+6.0	2010.01.19	chromatic	released 2.0.0
+5.1	2009.08.06	cotto	remove branch_cs opcode
+5.0	2009.07.21	cotto	released 1.4.0
+4.0	2009.03.17	allison	released 1.0.0
+3.0	2007.07.23	jonathan	implementing new PBC header format
+2.0	2005.11.22	leo	changed PBC format (HLL_info)
+1.0	2005.10.15	jonathan	changed debug segment format
+0.1	2003.10.21	leo	start this file
