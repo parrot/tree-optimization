@@ -18,7 +18,8 @@ sub MAIN(@ARGS) {
            :checkout_uri('git://github.com/ekiru/tree-optimization.git'),
            :browser_uri('http://github.com/ekiru/tree-optimization'),
            :project_uri('http://github.com/ekiru/tree-optimization'),
-           :prove_exec(get_nqp())
+           :test_exec('parrot --library build ' ~
+                      get_libdir() ~ '/library/nqp-rx.pbc'),
           );
 
     %tree-optimization<pir_nqp-rx><build/PAST/Pattern.pir> :=
