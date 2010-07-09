@@ -18,8 +18,7 @@ sub MAIN(@ARGS) {
            :checkout_uri('git://github.com/ekiru/tree-optimization.git'),
            :browser_uri('http://github.com/ekiru/tree-optimization'),
            :project_uri('http://github.com/ekiru/tree-optimization'),
-           :test_exec('parrot --library build ' ~
-                      get_libdir() ~ '/library/nqp-rx.pbc'),
+           :prove_exec(get_nqp())
           );
 
     %tree-optimization<pir_nqp-rx><build/PAST/Pattern.pir> :=
@@ -89,7 +88,20 @@ sub MAIN(@ARGS) {
       <build/Tree/Walker.pir>;
 
     %tree-optimization<inst_lib> :=
-      < build/Tree/Transformer.pbc
+      < build/PAST/Pattern.pbc
+        build/PAST/Transformer.pbc
+        build/PAST/Transformer/Dynamic.pbc
+        build/PAST/Walker.pbc
+        build/PAST/Walker/Dynamic.pbc
+        build/PCT/Pattern.pbc
+        build/POST/Pattern.pbc
+        build/Tree/Pattern.pbc
+        build/Tree/Pattern/Any.pbc
+        build/Tree/Pattern/Closure.pbc
+        build/Tree/Pattern/Constant.pbc
+        build/Tree/Pattern/Match.pbc
+        build/Tree/Pattern/Transformer.pbc
+        build/Tree/Transformer.pbc
         build/Tree/Walker.pbc >;
 
     setup(|@ARGS, |%tree-optimization);
