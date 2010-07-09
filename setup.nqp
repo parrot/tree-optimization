@@ -7,7 +7,7 @@ sub MAIN(@ARGS) {
     pir::shift__sP(@ARGS);
     my %tree-optimization :=
       hash(:name<tree-optimization>,
-           :abstract('A library for analysis, pattern-matching, and ' ~
+           :abstract('Library for analysis, pattern-matching, and ' ~
                      'transformation of Trees.'),
            :keywords<parrot optimization pattern pct>,
            :license_type('Artistic License 2.0'),
