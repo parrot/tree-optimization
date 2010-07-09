@@ -34,8 +34,6 @@ module Tree::Walker {
         for $newChildren.list -> $child {
             pir::push($node, $child);
         }
-        pir::delete($node, 'viviself');
-        pir::delete($node, 'vivibase');
         for $newChildren.hash {
             $node.attr($_.key, $_.value, 1);
         }
