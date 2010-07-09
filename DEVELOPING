@@ -1,5 +1,0 @@
-# $Id$
-
-This file should only exist in development distributions.  Delete it
-(and its entry in the MANIFEST) before packaging Parrot up for a CPAN
-or other release distribution.
