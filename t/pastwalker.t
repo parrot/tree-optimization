@@ -1,190 +1,87 @@
-#!/usr/bin/env parrot
-# Copyright (C) 2010, Parrot Foundation.
-# $Id$
+#!/usr/bin/env parrot-nqp
 
-=head1 NAME
+INIT {
+    pir::load_bytecode('PCT.pbc');
+    pir::load_bytecode('PAST/Walker.pbc');
+}
 
-t/library/pastwalker.t
+plan(6);
+test_count_node_types();
 
-=head1 DESCRIPTION
+class NodeCounter is PAST::Walker {
+    has $!counts;
 
-Test PAST::Walker.
+    method reset () {
+        my %hash;
+        for <blocks ops stmts vals vars varlists> {
+            %hash{$_} := 0;
+        }
+        self.counts(%hash);
+    }
 
-=head1 SYNOPSIS
+    our multi method counts ($counts) {
+        pir::setattribute(self, '$!counts', $counts);
+    }
+    our multi method counts () {
+        pir::getattribute__PPS(self, '$!counts');
+    }
+}
 
-    % prove t/library/pastwalker.t
+module Tree::Walker {
+    our multi sub walk (NodeCounter $walker, PAST::Block $block) {
+        $walker.counts<blocks>++;
+        walkChildren($walker, $block);
+    }
+    our multi sub walk (NodeCounter $walker, PAST::Op $op) {
+        $walker.counts<ops>++;
+        walkChildren($walker, $op);
+    }
+    our multi sub walk (NodeCounter $walker, PAST::Stmts $stmts) {
+        $walker.counts<stmts>++;
+        walkChildren($walker, $stmts);
+    }
+    our multi sub walk (NodeCounter $walker, PAST::Val $val) {
+        $walker.counts<vals>++;
+        walkChildren($walker, $val);
+    }
+    our multi sub walk (NodeCounter $walker, PAST::Var $var) {
+        $walker.counts<vars>++;
+        walkChildren($walker, $var);
+    }
+    our multi sub walk (NodeCounter $walker, PAST::VarList $varlist) {
+        $walker.counts<varlists>++;
+        walkChildren($walker, $varlist);
+    }
+}
 
-=cut
+sub test_count_node_types () {
+    my $walker := NodeCounter.new;
+    $walker.reset;
+    my $past :=
+      PAST::Block.new(PAST::Var.new(:vivibase(PAST::Op.new)),
+                      PAST::Op.new(:pirop<call>,
+                                   PAST::Var.new(:viviself(PAST::Block.new(PAST::Block.new))),
+                                   PAST::Val.new),
+                      PAST::Stmts.new(PAST::Op.new,
+                                      PAST::Op.new,
+                                      PAST::VarList.new,
+                                      PAST::Block.new(:loadinit(PAST::Stmts.new))),
+                      PAST::Stmts.new);
 
-.sub 'main' :main
-    .include 'test_more.pir'
+    $walker.walk($past);
+    my %counts := $walker.counts;
 
-    load_bytecode 'PCT.pbc'
-    load_bytecode 'PAST/Walker.pbc'
-    register_classes()
-
-    plan(6)
-    test_count_node_types()
-.end
-
-=head1 Tests
-
-=over 4
-
-=item test_count_node_types()
-
-Uses PAST::Walker::NodeCounter to count the number of each node type in a PAST. It tests that traversal of all node types does work.
-
-=cut
-
-.sub 'test_count_node_types'
-    .local pmc walker, past
-    walker = new ['PAST';'Walker';'NodeCounter']
-    walker.'reset'()
-
-    past = 'build_count_node_types_past'()
-
-    walker.'walk'(past)
-
-    $P2 = getattribute walker, 'counts'
-
-    $P3 = $P2['blocks']
-    is($P3, 4, "PAST::Block")
-
-    $P3 = $P2['ops']
-    is($P3, 4, "PAST::Op")
-
-    $P3 = $P2['vars']
-    is($P3, 2, "PAST::Var")
-
-    $P3 = $P2['vals']
-    is($P3, 1, "PAST::Val")
-
-    $P3 = $P2['stmts']
-    is($P3, 3, "PAST::Stmts")
-
-    $P3 = $P2['varlists']
-    is($P3, 1, "PAST::VarList")
-.end
-
-.sub 'build_count_node_types_past'
-    .local pmc past
-    past = new ['PAST';'Block']
-
-    $P0 = new ['PAST'; 'Var']
-    $P1 = new ['PAST'; 'Op']
-    $P0.'vivibase'($P1)
-    push past, $P0
-    $P0 = new ['PAST'; 'Op']
-    $P0.'pirop'("call")
-    $P1 = new ['PAST'; 'Var']
-    $P2 = new ['PAST'; 'Block']
-    $P3 = new ['PAST'; 'Block']
-    $P2.'control'($P3)
-    $P1.'viviself'($P2)
-    push $P0, $P1
-    $P1 = new ['PAST'; 'Val']
-    push $P0, $P1
-    push past, $P0
-    $P0 = new ['PAST'; 'Stmts']
-    $P1 = new ['PAST'; 'Op']
-    push $P0, $P1
-    $P1 = new ['PAST'; 'Op']
-    push $P0, $P1
-    $P1 = new ['PAST'; 'VarList']
-    push $P0, $P1
-    $P1 = new ['PAST'; 'Block']
-    $P2 = new ['PAST'; 'Stmts']
-    $P1.'loadinit'($P2)
-    push $P0, $P1
-    push past, $P0
-    $P0 = new ['PAST'; 'Stmts']
-    push past, $P0
-    .return (past)
-.end
-
-=back
-
-=head1 Helper classes
-
-=cut
-
-.sub 'register_classes'
-    $P0 = subclass ['PAST'; 'Walker'], ['PAST'; 'Walker'; 'NodeCounter']
-    addattribute $P0, 'counts'
-.end
-
-.namespace ['Tree'; 'Walker']
-
-.sub 'walk' :multi(['PAST';'Walker';'NodeCounter'], ['PAST';'Block'])
-    .param pmc walker
-    .param pmc node
-    $P0 = getattribute walker, 'counts'
-    $I0 = $P0['blocks']
-    inc $I0
-    $P0['blocks'] = $I0
-    'walkChildren'(walker, node)
-.end
-
-.sub 'walk' :multi(['PAST';'Walker';'NodeCounter'], ['PAST';'Op'])
-    .param pmc walker
-    .param pmc node
-    $P0 = getattribute walker, 'counts'
-    $I0 = $P0['ops']
-    inc $I0
-    $P0['ops'] = $I0
-    'walkChildren'(walker, node)
-.end
-
-.sub 'walk' :multi(['PAST';'Walker';'NodeCounter'], ['PAST';'Stmts'])
-    .param pmc walker
-    .param pmc node
-    $P0 = getattribute walker, 'counts'
-    $I0 = $P0['stmts']
-    inc $I0
-    $P0['stmts'] = $I0
-    'walkChildren'(walker, node)
-.end
-
-.sub 'walk' :multi(['PAST';'Walker';'NodeCounter'], ['PAST';'Val'])
-    .param pmc walker
-    .param pmc node
-    $P0 = getattribute walker, 'counts'
-    $I0 = $P0['vals']
-    inc $I0
-    $P0['vals'] = $I0
-    'walkChildren'(walker, node)
-.end
-
-.sub 'walk' :multi(['PAST';'Walker';'NodeCounter'], ['PAST';'Var'])
-    .param pmc walker
-    .param pmc node
-    $P0 = getattribute walker, 'counts'
-    $I0 = $P0['vars']
-    inc $I0
-    $P0['vars'] = $I0
-    'walkChildren'(walker, node)
-.end
-
-.sub 'walk' :multi(['PAST';'Walker';'NodeCounter'], ['PAST';'VarList'])
-    .param pmc walker
-    .param pmc node
-    $P0 = getattribute walker, 'counts'
-    $I0 = $P0['varlists']
-    inc $I0
-    $P0['varlists'] = $I0
-    'walkChildren'(walker, node)
-.end
-
-.namespace ['PAST'; 'Walker'; 'NodeCounter']
-
-.sub 'reset' :method
-    $P0 = new 'Hash'
-    setattribute self, 'counts', $P0
-.end
+    ok(%counts<blocks> == 4, "PAST::Block");
+    ok(%counts<ops> == 4, "PAST::Op");
+    ok(%counts<stmts> == 3, "PAST::Stmts");
+    ok(%counts<vals> == 1, "PAST::Val");
+    ok(%counts<vars> == 2, "PAST::Var");
+    ok(%counts<varlists> == 1, "PAST::VarList");
+}
 
 # Local Variables:
-#   mode: pir
+#   mode: cperl
+#   cperl-indent-level: 4
 #   fill-column: 100
 # End:
-# vim: expandtab shiftwidth=4 ft=pir:
+# vim: expandtab shiftwidth=4:
