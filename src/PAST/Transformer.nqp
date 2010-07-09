@@ -20,18 +20,22 @@ module Tree::Walker {
             $results[$index] := walk($walker, $var[$index]);
             $index++;
         }
-        $results['viviself'] := $walker.walk($var.viviself)
+        $results<viviself> := $walker.walk($var.viviself)
           if $walker.walkable($var.viviself);
-        $results['vivibase'] := $walker.walk($var.vivibase)
+        $results<vivibase> := $walker.walk($var.vivibase)
           if $walker.walkable($var.vivibase);
         $results;
     }
 
-    our multi sub replaceChildren (PAST::Var $node, $newChildren) {
-        $node := null;
+    our multi sub replaceChildren (PAST::Var $node, Capture $newChildren) {
+        for $node.list {
+            pir::pop($node);
+        }
         for $newChildren.list -> $child {
             pir::push($node, $child);
         }
+        pir::delete($node, 'viviself');
+        pir::delete($node, 'vivibase');
         for $newChildren.hash {
             $node.attr($_.key, $_.value, 1);
         }

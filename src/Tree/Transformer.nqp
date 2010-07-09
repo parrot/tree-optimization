@@ -35,7 +35,7 @@ module Tree::Walker {
         @results;
     }
 
-    our sub replaceChildren ($node, $newChildren) {
+    our multi sub replaceChildren ($node, $newChildren) {
         my $index := pir::elements__IP($node);
         while ($index > 0) {
             pir::pop__PP($node);
