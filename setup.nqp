@@ -24,6 +24,8 @@ sub MAIN(@ARGS) {
 
     %tree-optimization<pir_nqp-rx><build/PAST/Pattern.pir> :=
       <src/PAST/Pattern.nqp>;
+    %tree-optimization<pir_nqp-rx><build/PAST/Pattern/Transformer.pir> :=
+      <src/PAST/Pattern/Transformer.nqp>;
     %tree-optimization<pir_nqp-rx><build/PAST/Transformer.pir> :=
       <src/PAST/Transformer.nqp>;
     %tree-optimization<pir_nqp-rx><build/PAST/Transformer/Dynamic.pir> :=
@@ -35,6 +37,8 @@ sub MAIN(@ARGS) {
 
     %tree-optimization<pbc_pir><build/PAST/Pattern.pbc> :=
       <build/PAST/Pattern.pir>;
+    %tree-optimization<pbc_pir><build/PAST/Pattern/Transformer.pbc> :=
+      <build/PAST/Pattern/Transformer.pir>;
     %tree-optimization<pbc_pir><build/PAST/Transformer.pbc> :=
       <build/PAST/Transformer.pir>;
     %tree-optimization<pbc_pir><build/PAST/Transformer/Dynamic.pbc> :=
@@ -90,6 +94,7 @@ sub MAIN(@ARGS) {
 
     %tree-optimization<inst_lib> :=
       < build/PAST/Pattern.pbc
+        build/PAST/Pattern/Transformer.pbc
         build/PAST/Transformer.pbc
         build/PAST/Transformer/Dynamic.pbc
         build/PAST/Walker.pbc

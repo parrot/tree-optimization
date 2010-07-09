@@ -4,9 +4,14 @@
 
 INIT {
     pir::load_bytecode('PCT/Pattern.pbc');
+    pir::load_bytecode('PAST/Pattern/Transformer.pbc');
 }
 
 class PAST::Pattern is PCT::Pattern {
+    method transformer_class () {
+        PAST::Pattern::Transformer;
+    }
+
     method returns ($val?) {
         self.attr("returns", $val, !pir::isnull__iP($val));
     }
