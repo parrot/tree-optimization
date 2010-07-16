@@ -12,6 +12,34 @@ class PAST::Transformer is Tree::Transformer {
 }
 
 module Tree::Walker {
+    our multi sub walkChildren (PAST::Transformer $walker,
+                                PAST::Block $block) {
+        my $results := pir::new__PP(Capture);
+        my $index := 0;
+        my $max := pir::elements__IP($block);
+        while ($index < $max) {
+            $results[$index] := walk($walker, $block[$index]);
+            $index++;
+        }
+        $results<control> := $walker.walk($block.control)
+          if $walker.walkable($block.control);
+        $results<loadinit> := $walker.walk($block.loadinit)
+          if $walker.walkable($block.loadinit);
+        $results;
+    }
+
+    our multi sub replaceChildren (PAST::Block $node, Capture $newChildren) {
+        for $node.list {
+            pir::pop($node);
+        }
+        for $newChildren.list -> $child {
+            pir::push($node, $child);
+        }
+        for $newChildren.hash {
+            $node.attr($_.key, $_.value, 1);
+        }
+    }
+
     our multi sub walkChildren (PAST::Transformer $walker, PAST::Var $var) {
         my $results := pir::new__PP(Capture);
         my $index := 0;
