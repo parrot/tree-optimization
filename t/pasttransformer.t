@@ -8,11 +8,12 @@ INIT {
     pir::load_bytecode('PAST/Pattern.pbc');
 }
 
-plan(4);
+plan(5);
 test_change_node_attributes();
 test_change_node_types();
 test_delete_nodes();
 test_traverse_var_attributes();
+test_traverse_block_attributes();
 
 class Increment is PAST::Transformer { }
 class Negate is PAST::Transformer { }
@@ -119,6 +120,25 @@ sub test_traverse_var_attributes () {
                              :vivibase(PAST::Pattern::Val.new(:value(7))));
     ok($result.match($target, :pos($result)),
        "PAST::Transformer walks PAST::Var.viviself and .vivibase.");
+}
+
+sub test_traverse_block_attributes () {
+    my $past :=
+      PAST::Block.new(:control(PAST::Stmts.new(PAST::Block.new(PAST::Op.new,
+                                                               PAST::Op.new),
+                                              PAST::Block.new)),
+                      :loadinit(PAST::Stmts.new(PAST::Block.new(PAST::Op.new,
+                                                                PAST::Op.new),
+                                               PAST::Block.new)));
+    my $transformer := Trim.new;
+    my $target := PAST::Pattern::Block.new;
+    $target<control> :=
+      PAST::Pattern::Stmts.new(PAST::Pattern::Block.new);
+    $target<loadinit> :=
+      PAST::Pattern::Stmts.new(PAST::Pattern::Block.new);
+    my $result := $transformer.walk($past);
+    ok($result.match($target, :pos($result)),
+       "PAST::Transformer walks PAST::Block.control and .loadinit.");
 }
 
 # Local Variables:
