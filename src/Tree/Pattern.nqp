@@ -50,12 +50,16 @@ class Tree::Pattern is Capture {
         $transformer.walk($node);
     }
 
+    # .transformer_class is used so that subclasses can override the
+    # behavior of the transformer.
     method transformer_class () {
         Tree::Pattern::Transformer;
     }
 
     method ACCEPTS ($node, *%opts) {
+        # Find every match.
         my $global := ?%opts<g> || ?%opts<global>;
+        # Only attempt to match an exact node.
         my $pos := %opts<p> || %opts<pos>;
         pir::die("ACCEPTS cannot take both :global and :pos modifiers.")
             if $global && $pos;
