@@ -15,6 +15,8 @@ class Tree::Transformer {
 module Tree::Walker {
     our multi sub walk (Tree::Transformer $walker, Capture $node) {
         my $result := $node;
+        # If we want to transform the children, we must do this
+        # walkChildren -> replaceChildren dance.
         replaceChildren($result, walkChildren($walker, $node));
         $result;
     }
@@ -43,6 +45,7 @@ module Tree::Walker {
         }
         my $max := pir::elements__IP($newChildren);
         while ($index < $max) {
+            # The new child may be null, in which case we simply drop it.
             pir::push($node, $newChildren[$index])
                 if pir::defined__IP($newChildren[$index]);
             $index++;
