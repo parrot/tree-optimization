@@ -4,6 +4,9 @@ INIT {
     pir::load_bytecode('Tree/Optimizer/Pass.pbc');
 }
 
+# @!passes is an RPA of Tree::Optimizer::Pass objects representing the
+# list of passes to be ran by the run method.
+# has Tree::Optimizer::Pass @!passes;
 has @!passes;
 
 method new () {
