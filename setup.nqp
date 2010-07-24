@@ -30,6 +30,7 @@ sub MAIN() {
             'build/PAST/Walker/Dynamic.pir',            'src/PAST/Walker/Dynamic.nqp',
             'build/PCT/Pattern.pir',                    'src/PCT/Pattern.nqp',
             'build/POST/Pattern.pir',                   'src/POST/Pattern.nqp',
+            'build/Tree/Optimizer.pir',                 'src/Tree/Optimizer.nqp',
             'build/Tree/Pattern.pir',                   'src/Tree/Pattern.nqp',
             'build/Tree/Pattern/Any.pir',               'src/Tree/Pattern/Any.nqp',
             'build/Tree/Pattern/Closure.pir',           'src/Tree/Pattern/Closure.nqp',
@@ -48,6 +49,8 @@ sub MAIN() {
             'build/PAST/Walker/Dynamic.pbc',            'build/PAST/Walker/Dynamic.pir',
             'build/PCT/Pattern.pbc',                    'build/PCT/Pattern.pir',
             'build/POST/Pattern.pbc',                   'build/POST/Pattern.pir',
+            'build/Tree/Optimizer.pbc',                 'build/Tree/Optimizer.pir',
+
             'build/Tree/Pattern.pbc',                   'build/Tree/Pattern.pir',
             'build/Tree/Pattern/Any.pbc',               'build/Tree/Pattern/Any.pir',
             'build/Tree/Pattern/Closure.pbc',           'build/Tree/Pattern/Closure.pir',
@@ -73,6 +76,7 @@ sub MAIN() {
             build/PAST/Walker/Dynamic.pbc
             build/PCT/Pattern.pbc
             build/POST/Pattern.pbc
+            build/Tree/Optimizer.pbc
             build/Tree/Pattern.pbc
             build/Tree/Pattern/Any.pbc
             build/Tree/Pattern/Closure.pbc
