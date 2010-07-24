@@ -9,12 +9,19 @@ INIT {
 class Tree::Pattern is Capture {
     sub patternize ($value) {
         if ($value ~~ Regex::Method) {
+            # Regexes are subs, but we just want to treat them as a normal
+            # pattern.
             $value;
         } elsif (pir::isa__IPP($value, Sub)) {
+            # We have to check for Sub-ness before we check for ACCEPTs.
+            # Otherwise, some HLLs may get weird results if they add an
+            # ACCEPTS method to Sub.
             Tree::Pattern::Closure.new($value);
         } elsif (pir::can__IPS($value, 'ACCEPTS')) {
+            # Things with accepts are treated as patterns.
             $value;
         } else {
+            # If all else fails, let's try iseq.
             Tree::Pattern::Constant.new($value);
         }
     }
