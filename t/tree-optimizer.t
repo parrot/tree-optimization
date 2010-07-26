@@ -25,23 +25,13 @@ plan(6);
        'Tree::Optimizer.find-pass with a non-existent name returns undef.');
 }
 
-pir::load_bytecode('PCT.pbc');
-pir::load_bytecode('PAST/Pattern.pbc');
-
 {
-    my sub build-past () {
-        PAST::Val.new(:value(5));
-    }
-    my sub build-target () {
-        PAST::Pattern::Val.new(:value(-5));
-    }
     my $opt := Tree::Optimizer.new;
     my &transform := sub ($v) {
-        $v.value(-$v.value());
-        $v;
+        -$v;
     };
     $opt.register(&transform);
-    ok($opt.run(build-past()) ~~ build-target(),
+    ok($opt.run(5) == -5,
        'Simple Sub pass runs correctly.');
 }
 
