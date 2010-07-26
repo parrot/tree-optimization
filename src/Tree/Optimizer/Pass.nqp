@@ -17,3 +17,7 @@ method new ($trans, *%adverbs) {
     $self.transformation($trans);
     $self;
 }
+
+method run ($tree) {
+    $!transformation($tree);
+}
