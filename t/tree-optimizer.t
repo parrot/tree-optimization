@@ -33,7 +33,7 @@ pir::load_bytecode('PAST/Pattern.pbc');
         PAST::Val.new(:value(5));
     }
     my sub build-target () {
-        PAST::Pattern::Val.new(:value(5));
+        PAST::Pattern::Val.new(:value(-5));
     }
     my $opt := Tree::Optimizer.new;
     my &transform := sub ($v) {
