@@ -39,7 +39,7 @@ method register ($transformation, *%adverbs) {
 method run ($tree) {
     my $result := $tree;
     for @!passes -> $pass {
-        $result := $pass.transformation($result);
+        $result := $pass.transformation()($result);
     }
     $result;
 }
