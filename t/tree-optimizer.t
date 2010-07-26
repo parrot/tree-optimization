@@ -2,7 +2,7 @@
 
 pir::load_bytecode('Tree/Optimizer.pbc');
 
-plan(6);
+plan(8);
 
 {
     my $opt := Tree::Optimizer.new;
@@ -33,6 +33,29 @@ plan(6);
     $opt.register(&transform);
     ok($opt.run(5) == -5,
        'Simple Sub pass runs correctly.');
+}
+
+{
+    my &square := sub ($x) {
+        $x * $x;
+    }
+    my &negate := sub ($x) {
+        -$x;
+    }
+    {
+        my $opt := Tree::Optimizer.new;
+        $opt.register(&square, :name<square>);
+        $opt.register(&negate, :depends-on<square>);
+        ok($opt.run(2) == -4,
+           'Correct order when registering a pass after its dependency.');
+    }
+    {
+        my $opt := Tree::Optimizer.new;
+        $opt.register(&negate, :depends-on<square>);
+        $opt.register(&square, :name<square>);
+        ok($opt.run(2) == -4,
+           'Correct order when registering a pass after its dependency.');
+    }
 }
 
 # Local Variables:
