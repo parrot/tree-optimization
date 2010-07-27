@@ -2,7 +2,7 @@
 
 pir::load_bytecode('Tree/Optimizer.pbc');
 
-plan(8);
+plan(9);
 
 {
     my $opt := Tree::Optimizer.new;
@@ -55,6 +55,13 @@ plan(8);
         $opt.register(&square, :name<square>);
         ok($opt.run(2) == -4,
            'Correct order when registering a pass after its dependency.');
+    }
+    {
+        my $opt := Tree::Optimizer.new;
+        $opt.register(&negate, :name<negate>);
+        $opt.register(&square, :depends-on<negate>);
+        ok($opt.run(2) == 4,
+           'Correct order is not coincidental.');
     }
 }
 
