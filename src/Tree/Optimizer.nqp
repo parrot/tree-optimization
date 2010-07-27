@@ -4,10 +4,9 @@ INIT {
     pir::load_bytecode('Tree/Optimizer/Pass.pbc');
 }
 
-# @!passes is an RPA of Tree::Optimizer::Pass objects representing the
-# list of passes to be ran by the run method.
-# has Tree::Optimizer::Pass @!passes;
-has @!passes;
+# %!passes is a Hash from pass names to corresponding Tree::Optimizer::Pass
+# objects.
+has %!passes;
 
 method new () {
     my $self := pir::new__PP(self.HOW.get_parrotclass(self));
@@ -19,27 +18,30 @@ method new () {
 # indexing to accessing @!passes, it would be auto-vivified. Since we use
 # push instead, we must manually initialize it.
 method BUILD () {
-    @!passes := [];
+    %!passes := pir::new__PP(Hash);
 }
 
 method find-pass ($name) {
-    my $result;
-    for @!passes -> $pass {
-        if $pass.name eq $name {
-            $result := $pass;
-        }
-    }
-    $result;
+    %!passes{$name};
 }
 
 method register ($transformation, *%adverbs) {
-    @!passes.push(Tree::Optimizer::Pass.new($transformation, |%adverbs));
+    my $pass := Tree::Optimizer::Pass.new($transformation, |%adverbs);
+    %!passes{$pass.name} := $pass;
 }
 
 method run ($tree) {
     my $result := $tree;
-    for @!passes -> $pass {
+    for self.pass-order -> $pass {
         $result := $pass.run($result);
     }
     $result;
+}
+
+method pass-order () {
+    my @result;
+    for %!passes {
+        @result.push($_.value);
+    }
+    @result;
 }
