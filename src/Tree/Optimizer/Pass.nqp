@@ -10,12 +10,17 @@ our multi method transformation () { $!transformation; }
 our multi method transformation ($tran) { $!transformation := $tran; }
 
 method new ($trans, *%adverbs) {
-    my $self := pir::new__PP(self.HOW.get_parrotclass(self));
-    $self.name(%adverbs<name> || '');
     pir::die(" A pass' transformation must not be undefined.")
         unless pir::defined__IP($trans);
-    $self.transformation($trans);
+    my $self := pir::new__PP(self.HOW.get_parrotclass(self));
+    $self.BUILD(:transformation($trans), |%adverbs);
+    $self.name(%adverbs<name> || '');
     $self;
+}
+
+method BUILD (:$transformation, :$name, *%ignored) {
+    $!name := $name || '';
+    $!transformation := $transformation;
 }
 
 method run ($tree) {
