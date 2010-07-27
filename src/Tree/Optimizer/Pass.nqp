@@ -14,12 +14,15 @@ method new ($trans, *%adverbs) {
         unless pir::defined__IP($trans);
     my $self := pir::new__PP(self.HOW.get_parrotclass(self));
     $self.BUILD(:transformation($trans), |%adverbs);
-    $self.name(%adverbs<name> || '');
     $self;
 }
 
+my $current-gen-name := 0;
+sub gen-name () {
+    '__unnamed_' ~ $current-gen-name++;
+}
 method BUILD (:$transformation, :$name, *%ignored) {
-    $!name := $name || '';
+    $!name := $name || gen-name();
     $!transformation := $transformation;
 }
 
