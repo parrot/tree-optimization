@@ -2,7 +2,7 @@
 
 pir::load_bytecode('Tree/Optimizer.pbc');
 
-plan(9);
+plan(10);
 
 {
     my $opt := Tree::Optimizer.new;
@@ -63,6 +63,15 @@ plan(9);
         ok($opt.run(2) == 4,
            'Correct order is not coincidental.');
     }
+}
+
+{
+    my &inc := sub ($n) { $n + 1; };
+    my $opt := Tree::Optimizer.new;
+    $opt.register(&inc);
+    $opt.register(&inc);
+    ok($opt.run(0) == 2,
+       'Multipled unnamed passes are allowed.');
 }
 
 # Local Variables:
