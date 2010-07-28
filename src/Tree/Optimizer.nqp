@@ -8,6 +8,11 @@ INIT {
 # objects.
 has %!passes;
 
+# %!predecessors and %!successors are used to maintain the dependency graph
+# of passes.
+has %!predecessors;
+has %!successors;
+
 method new () {
     my $self := pir::new__PP(self.HOW.get_parrotclass(self));
     $self.BUILD();
@@ -19,6 +24,8 @@ method new () {
 # push instead, we must manually initialize it.
 method BUILD () {
     %!passes := pir::new__PP(Hash);
+    %!predecessors := pir::new__PP(Hash);
+    %!successors := pir::new__PP(Hash);
 }
 
 method find-pass ($name) {
@@ -28,6 +35,19 @@ method find-pass ($name) {
 method register ($transformation, *%adverbs) {
     my $pass := Tree::Optimizer::Pass.new($transformation, |%adverbs);
     %!passes{$pass.name} := $pass;
+    my $depends-on := %adverbs<depends-on>;
+    if $depends-on {
+        my @dependencies;
+        if pir::isa__IPP($depends-on, String) {
+            @dependencies := pir::split__PSS($depends-on, ' ');
+        } else {
+            @dependencies := $depends-on;
+        }
+        %!predecessors{$pass.name} := @dependencies;
+        for @dependencies -> $dependency {
+            %!successors{$dependency} := $pass.name;
+        }
+    }
 }
 
 method run ($tree) {
