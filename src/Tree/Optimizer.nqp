@@ -19,9 +19,6 @@ method new () {
     $self;
 }
 
-# The BUILD method is necessary to initialize @!passes. If we only used
-# indexing to accessing @!passes, it would be auto-vivified. Since we use
-# push instead, we must manually initialize it.
 method BUILD () {
     %!passes := pir::new__PP(Hash);
     %!predecessors := pir::new__PP(Hash);
