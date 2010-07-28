@@ -40,11 +40,19 @@ method register ($transformation, *%adverbs) {
         } else {
             @dependencies := $depends-on;
         }
-        %!predecessors{$pass.name} := @dependencies;
         for @dependencies -> $dependency {
-            %!successors{$dependency} := $pass.name;
+            self.add-dependency($pass.name, $dependency);
         }
     }
+}
+
+method add-dependency($dependent, $dependency) {
+    %!predecessors{$dependent} := []
+      unless pir::exists__IQS(%!predecessors, $dependent);
+    %!predecessors{$dependent}.push($dependency);
+    %!successors{$dependency} := []
+      unless pir::exists__IQS(%!successors, $dependency);
+    %!successors{$dependency}.push($dependent);
 }
 
 method run ($tree) {
