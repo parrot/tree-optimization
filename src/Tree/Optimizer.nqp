@@ -33,9 +33,13 @@ method register ($transformation, *%adverbs) {
 method run ($tree) {
     my $result := $tree;
     for self.pass-order -> $pass {
-        $result := $pass.run($result);
+        $result := self.run-pass($pass, $result);
     }
     $result;
+}
+
+method run-pass ($pass, $tree) {
+    $pass.run($tree);
 }
 
 method pass-order () {
