@@ -61,11 +61,16 @@ class Tree::Pattern is Capture {
         my $global := ?%opts<g> || ?%opts<global>;
         # Only attempt to match an exact node.
         my $pos := %opts<p> || %opts<pos>;
+        # New way of doing exacting matching.
+        my $exact := %opts<exact> || 0;
         pir::die("ACCEPTS cannot take both :global and :pos modifiers.")
             if $global && $pos;
+        pir::die("ACCEPTS cannot take both :exact and :Global modifiers")
+            if $global && $exact;
         return self.ACCEPTSGLOBALLY($node) if $global;
         return self.ACCEPTSEXACTLY($pos) if $pos;
-        my $/ := self.ACCEPTSEXACTLY($node);
+        return self.ACCEPTSEXACTLY($node) if $exact;
+        my $/ := self.ACCEPTS($node, :exact(1));
         if (!$/ && pir::isa__iPP($node, Capture)) {
             my $index := 0;
             my $max := pir::elements__IP($node);
@@ -81,7 +86,7 @@ class Tree::Pattern is Capture {
 
     method ACCEPTSGLOBALLY ($node) {
         my $/;
-        my $first := self.ACCEPTSEXACTLY($node);
+        my $first := self.ACCEPTS($node, :exact(1));
         if (pir::isa__iPP($node, Capture)) {
             my $matches := ?$first;
             my $index := 0;

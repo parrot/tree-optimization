@@ -66,7 +66,7 @@ class PCT::Pattern is Tree::Pattern {
         my $nAttr := $node.attr($attribute, null, 0);
         my $result := 
           ($pAttr ~~ Tree::Pattern
-           ?? $pAttr.ACCEPTS($nAttr, :p($nAttr))
+           ?? $pAttr.ACCEPTS($nAttr, :exact(1))
            !! $nAttr ~~ $pAttr);
         if ($result) {
             $/{$attribute} := $result;
@@ -94,7 +94,7 @@ class PCT::Pattern is Tree::Pattern {
                 $pChild := self[$index];
                 if ($result := 
                     ($pChild ~~ Tree::Pattern
-                     ?? $pChild.ACCEPTS($nChild, :p($nChild))
+                     ?? $pChild.ACCEPTS($nChild, :exact(1))
                      !! $nChild ~~ $pChild)) {
                     $/[$index] := $result;
                 }

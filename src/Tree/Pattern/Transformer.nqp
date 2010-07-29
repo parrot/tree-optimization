@@ -94,7 +94,7 @@ module Tree::Walker {
             $shouldTransform := 0;
         }
         elsif ($pattern ~~ Tree::Pattern) {
-            $shouldTransform := $pattern.ACCEPTS($node, :pos($node));
+            $shouldTransform := $pattern.ACCEPTS($node, :exact(1));
         }
         else {
             $shouldTransform := $pattern.ACCEPTS($node);
@@ -113,7 +113,7 @@ module Tree::Walker {
         }
         elsif ($walker.descend_until ~~ Tree::Pattern) {
             $shouldDescend := !$walker.descend_until.ACCEPTS($node,
-                                                            :pos($node));
+                                                             :exact(1));
         }
         else {
             $shouldDescend := !$walker.descend_until.ACCEPTS($node);
