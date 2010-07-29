@@ -2,6 +2,7 @@ class Tree::Optimizer;
 
 INIT {
     pir::load_bytecode('Tree/Optimizer/Pass.pbc');
+    pir::load_bytecode('nqp-setting.pbc');
 }
 
 # %!passes is a Hash from pass names to corresponding Tree::Optimizer::Pass
@@ -36,7 +37,7 @@ method register ($transformation, *%adverbs) {
     if $depends-on {
         my @dependencies;
         if pir::isa__IPP($depends-on, String) {
-            @dependencies := pir::split__PSS($depends-on, ' ');
+            @dependencies := pir::split__PSS(' ', $depends-on);
         } else {
             @dependencies := $depends-on;
         }
@@ -55,6 +56,42 @@ method add-dependency($dependent, $dependency) {
     %!successors{$dependency}.push($dependent);
 }
 
+sub find (@array, $elem) {
+    my $index := 0;
+    my $found := 0;
+    for @array {
+        if $_ eq $elem {
+            ++$found;
+            last;
+        }
+        ++$index;
+    }
+    if $found {
+        $index;
+    } else {
+        -1;
+    }
+}
+
+method remove-dependency ($dependent, $dependency) {
+    pir::die("Can't remove dependency: $dependent does not depend on $dependency.")
+        unless %!predecessors{$dependent} && %!successors{$dependency};
+    my $pred-index := find(%!predecessors{$dependent}, $dependency);
+    my $succ-index := find(%!successors{$dependency}, $dependent);
+    pir::die("Can't remove dependency: $dependent does not depend on $dependency.")
+        if $pred-index == -1 || $succ-index == -1;
+    if +%!predecessors{$dependent} != 1 {
+        %!predecessors{$dependent}.delete($pred-index);
+    } else {
+        %!predecessors.delete($dependent);
+    }
+    if +%!successors{$dependency} != 1 {
+        %!successors{$dependency}.delete($succ-index);
+    } else {
+        %!successors.delete($dependency);
+    }
+}
+
 method run ($tree) {
     my $result := $tree;
     for self.pass-order -> $pass {
@@ -69,8 +106,22 @@ method run-pass ($pass, $tree) {
 
 method pass-order () {
     my @result;
+    my @no-preds;
     for %!passes {
-        @result.push($_.value);
+        @no-preds.push($_.key) unless
+          pir::exists__IQs(%!predecessors, $_.key);
     }
+    while +@no-preds != 0 {
+        my $name := @no-preds.pop;
+        @result.push(self.find-pass($name));
+        for %!successors{$name} -> $dependent {
+            self.remove-dependency($dependent, $name);
+            unless %!predecessors{$dependent} &&
+              +%!predecessors{$dependent} != 0 {
+                @no-preds.push($dependent);
+            }
+        }
+    }
+    pir::die('Cyclical dependency graph.') if +%!successors || +%!predecessors;
     @result;
 }
