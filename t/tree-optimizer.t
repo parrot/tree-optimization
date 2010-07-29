@@ -2,7 +2,7 @@
 
 pir::load_bytecode('Tree/Optimizer.pbc');
 
-plan(10);
+plan(12);
 
 {
     my $opt := Tree::Optimizer.new;
@@ -72,6 +72,25 @@ plan(10);
     $opt.register(&inc);
     ok($opt.run(0) == 2,
        'Multipled unnamed passes are allowed.');
+}
+
+{
+    class Even {
+        method ACCEPTS ($n) { $n % 2 == 0; }
+    }
+    my &inc := sub ($n) { $n + 1; };
+    {
+        my $opt := Tree::Optimizer.new;
+        $opt.register(&inc, :when(Even.new));
+        ok($opt.run(2) == 3,
+           'A pass with :when runs correctly when matching.');
+    }
+    {
+        my $opt := Tree::Optimizer.new;
+        $opt.register(&inc, :when(Even.new));
+        ok($opt.run(1) == 1,
+           'A pass with :when correctly does nothing when not matching.');
+    }
 }
 
 # Local Variables:
