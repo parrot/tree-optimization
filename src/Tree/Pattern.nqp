@@ -9,12 +9,19 @@ INIT {
 class Tree::Pattern is Capture {
     sub patternize ($value) {
         if ($value ~~ Regex::Method) {
+            # Regexes are subs, but we just want to treat them as a normal
+            # pattern.
             $value;
         } elsif (pir::isa__IPP($value, Sub)) {
+            # We have to check for Sub-ness before we check for ACCEPTs.
+            # Otherwise, some HLLs may get weird results if they add an
+            # ACCEPTS method to Sub.
             Tree::Pattern::Closure.new($value);
         } elsif (pir::can__IPS($value, 'ACCEPTS')) {
+            # Things with accepts are treated as patterns.
             $value;
         } else {
+            # If all else fails, let's try iseq.
             Tree::Pattern::Constant.new($value);
         }
     }
@@ -43,18 +50,27 @@ class Tree::Pattern is Capture {
         $transformer.walk($node);
     }
 
+    # .transformer_class is used so that subclasses can override the
+    # behavior of the transformer.
     method transformer_class () {
         Tree::Pattern::Transformer;
     }
 
     method ACCEPTS ($node, *%opts) {
+        # Find every match.
         my $global := ?%opts<g> || ?%opts<global>;
+        # Only attempt to match an exact node.
         my $pos := %opts<p> || %opts<pos>;
+        # New way of doing exacting matching.
+        my $exact := %opts<exact> || 0;
         pir::die("ACCEPTS cannot take both :global and :pos modifiers.")
             if $global && $pos;
+        pir::die("ACCEPTS cannot take both :exact and :Global modifiers")
+            if $global && $exact;
         return self.ACCEPTSGLOBALLY($node) if $global;
         return self.ACCEPTSEXACTLY($pos) if $pos;
-        my $/ := self.ACCEPTSEXACTLY($node);
+        return self.ACCEPTSEXACTLY($node) if $exact;
+        my $/ := self.ACCEPTS($node, :exact(1));
         if (!$/ && pir::isa__iPP($node, Capture)) {
             my $index := 0;
             my $max := pir::elements__IP($node);
@@ -70,7 +86,7 @@ class Tree::Pattern is Capture {
 
     method ACCEPTSGLOBALLY ($node) {
         my $/;
-        my $first := self.ACCEPTSEXACTLY($node);
+        my $first := self.ACCEPTS($node, :exact(1));
         if (pir::isa__iPP($node, Capture)) {
             my $matches := ?$first;
             my $index := 0;

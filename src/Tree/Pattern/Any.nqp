@@ -21,7 +21,7 @@ class Tree::Pattern::Any is Tree::Pattern {
         my $max := pir::elements(self);
         my $/;
         while ($index < $max) {
-            if ($/ := self[$index].ACCEPTS($node, :p($node))) {
+            if ($/ := self[$index].ACCEPTS($node, :exact(1))) {
                 return $/;
             }
             $index++;

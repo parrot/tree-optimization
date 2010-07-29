@@ -51,6 +51,10 @@ to modify the behavior of matching:
 
 =over 4
 
+=item * C<exact>
+
+The C<exact> option causes the pattern to only attempt to match the exact supplied.
+
 =item * C<g> or C<global>
 
 The C<global> option, also named C<g>, causes the match to search through the
@@ -59,13 +63,15 @@ Tree::Pattern::Match.
 
 This match result will not have a .orig method.
 
-=item * C<p> or C<pos>
+=item * C<p> or C<pos> (DEPRECATED)
 
 The ACCEPTS method with the C<pos> option, also named C<p>, checks only the top
 of the tree for matching the pattern.
 
 It will not recursively search the tree's children until it finds a matching
 sub-tree.
+
+The C<p> or C<pos> option is deprecated. Please use the C<exact> option instead.
 
 =back
 
