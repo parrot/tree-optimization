@@ -2,7 +2,7 @@
 
 pir::load_bytecode('Tree/Optimizer.pbc');
 
-plan(12);
+plan(13);
 
 {
     my $opt := Tree::Optimizer.new;
@@ -91,6 +91,23 @@ plan(12);
         ok($opt.run(1) == 1,
            'A pass with :when correctly does nothing when not matching.');
     }
+}
+
+pir::load_bytecode('PCT.pbc');
+pir::load_bytecode('PAST/Pattern.pbc');
+{
+    my $past := PAST::Stmts.new(PAST::Val.new(:value(6)));
+    my $target := PAST::Pattern::Stmts.new(PAST::Pattern::Val.new(:value(7)));
+    my $opt := Tree::Optimizer.new;
+    my &inc := sub transform ($node) {
+        if $node.match(PAST::Pattern::Val.new, :exact(1)) {
+            $node.value($node.value + 1);
+        }
+        $node;
+    };
+    $opt.register(&inc, :recursive(1));
+    ok($opt.run($past) ~~ $target,
+       'A pass with :recursive correctly recurses.');
 }
 
 # Local Variables:
