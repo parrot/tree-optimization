@@ -2,6 +2,7 @@ class Tree::Optimizer::Pass;
 
 has $!name;
 has $!transformation;
+has $!when;
 
 our multi method name () { $!name; }
 our multi method name ($name) { $!name := $name; }
@@ -21,11 +22,16 @@ my $current-gen-name := 0;
 sub gen-name () {
     '__unnamed_' ~ $current-gen-name++;
 }
-method BUILD (:$transformation, :$name, *%ignored) {
+method BUILD (:$transformation, :$name, :$when, *%ignored) {
     $!name := $name || gen-name();
     $!transformation := $transformation;
+    $!when := $when;
 }
 
 method run ($tree) {
-    $!transformation($tree);
+    if !pir::defined__IPP($!when) || $tree ~~ $!when {
+        $!transformation($tree);
+    } else {
+        $tree;
+    }
 }
