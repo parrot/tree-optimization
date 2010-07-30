@@ -2,7 +2,7 @@
 
 pir::load_bytecode('Tree/Optimizer.pbc');
 
-plan(13);
+plan(16);
 
 {
     my $opt := Tree::Optimizer.new;
@@ -33,6 +33,8 @@ plan(13);
     $opt.register(&transform);
     ok($opt.run(5) == -5,
        'Simple Sub pass runs correctly.');
+    ok($opt.run(5) == -5,
+       'Tree::Optimizer.run works repeatedly.');
 }
 
 {
@@ -48,6 +50,8 @@ plan(13);
         $opt.register(&negate, :depends-on<square>);
         ok($opt.run(2) == -4,
            'Correct order when registering a pass after its dependency.');
+        ok($opt.run(2) == -4,
+           'Repeated correct order when registering a pass after its dependency.');
     }
     {
         my $opt := Tree::Optimizer.new;
@@ -55,6 +59,8 @@ plan(13);
         $opt.register(&square, :name<square>);
         ok($opt.run(2) == -4,
            'Correct order when registering a pass after its dependency.');
+        ok($opt.run(2) == -4,
+           'Repeated correct order when registering a pass after its dependency.');
     }
     {
         my $opt := Tree::Optimizer.new;
