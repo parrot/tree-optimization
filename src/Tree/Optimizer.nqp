@@ -111,6 +111,8 @@ method pass-order () {
         @no-preds.push($_.key) unless
           pir::exists__IQs(%!predecessors, $_.key);
     }
+    my %old-preds := pir::clone__PP(%!predecessors);
+    my %old-succs := pir::clone__PP(%!successors);
     while +@no-preds != 0 {
         my $name := @no-preds.pop;
         @result.push(self.find-pass($name));
@@ -122,6 +124,12 @@ method pass-order () {
             }
         }
     }
-    pir::die('Cyclical dependency graph.') if +%!successors || +%!predecessors;
+    if +%!successors || +%!predecessors {
+        %!predecessors := %old-preds;
+        %!successors := %old-succs;
+        pir::die('Cyclical dependency graph.') 
+    }
+    %!predecessors := %old-preds;
+    %!successors := %old-succs;
     @result;
 }
