@@ -38,7 +38,7 @@ method run ($tree) {
     if $!recursive {
         self.generate-transformer.walk($tree);
     } elsif pir::defined__IPP($!when) {
-        my $/ := $tree ~~ $!when;
+        my $/ := $!when.ACCEPTS($tree, :exact(1));
         if $/ {
             $!transformation($/);
         } else {
