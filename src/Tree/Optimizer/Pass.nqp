@@ -29,9 +29,14 @@ method BUILD (:$transformation, :$name, :$when, *%ignored) {
 }
 
 method run ($tree) {
-    if !pir::defined__IPP($!when) || $tree ~~ $!when {
-        $!transformation($tree);
+    if pir::defined__IPP($!when) {
+        my $/ := $tree ~~ $!when;
+        if $/ {
+            $!transformation($/);
+        } else {
+            $tree;
+        }
     } else {
-        $tree;
+        $!transformation($tree);
     }
 }
