@@ -1,6 +1,11 @@
 class Tree::Optimizer::Pass;
 
+INIT {
+    pir::load_bytecode('Tree/Optimizer/Transformers.pbc');
+}
+
 has $!name;
+has $!recursive;
 has $!transformation;
 has $!when;
 
@@ -22,14 +27,17 @@ my $current-gen-name := 0;
 sub gen-name () {
     '__unnamed_' ~ $current-gen-name++;
 }
-method BUILD (:$transformation, :$name, :$when, *%ignored) {
+method BUILD (:$transformation, :$name, :$recursive, :$when, *%ignored) {
     $!name := $name || gen-name();
+    $!recursive := $recursive || 0;
     $!transformation := $transformation;
     $!when := $when;
 }
 
 method run ($tree) {
-    if pir::defined__IPP($!when) {
+    if $!recursive {
+        self.generate-transformer.walk($tree);
+    } elsif pir::defined__IPP($!when) {
         my $/ := $tree ~~ $!when;
         if $/ {
             $!transformation($/);
@@ -38,5 +46,13 @@ method run ($tree) {
         }
     } else {
         $!transformation($tree);
+    }
+}
+
+method generate-transformer () {
+    if pir::defined__IP($!when) {
+        $!when.transformer_class.new($!when, $!transformation);
+    } else {
+        Tree::Optimizer::Transformer::Single.new($!transformation);
     }
 }

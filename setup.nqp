@@ -32,6 +32,7 @@ sub MAIN() {
             'build/POST/Pattern.pir',                   'src/POST/Pattern.nqp',
             'build/Tree/Optimizer.pir',                 'src/Tree/Optimizer.nqp',
             'build/Tree/Optimizer/Pass.pir',            'src/Tree/Optimizer/Pass.nqp',
+            'build/Tree/Optimizer/Transformers.pir',    'src/Tree/Optimizer/Transformers.nqp',
             'build/Tree/Pattern.pir',                   'src/Tree/Pattern.nqp',
             'build/Tree/Pattern/Any.pir',               'src/Tree/Pattern/Any.nqp',
             'build/Tree/Pattern/Closure.pir',           'src/Tree/Pattern/Closure.nqp',
@@ -52,6 +53,7 @@ sub MAIN() {
             'build/POST/Pattern.pbc',                   'build/POST/Pattern.pir',
             'build/Tree/Optimizer.pbc',                 'build/Tree/Optimizer.pir',
             'build/Tree/Optimizer/Pass.pbc',            'build/Tree/Optimizer/Pass.pir',
+            'build/Tree/Optimizer/Transformers.pbc',    'build/Tree/Optimizer/Transformers.pir',
             'build/Tree/Pattern.pbc',                   'build/Tree/Pattern.pir',
             'build/Tree/Pattern/Any.pbc',               'build/Tree/Pattern/Any.pir',
             'build/Tree/Pattern/Closure.pbc',           'build/Tree/Pattern/Closure.pir',
@@ -79,6 +81,7 @@ sub MAIN() {
             build/POST/Pattern.pbc
             build/Tree/Optimizer.pbc
             build/Tree/Optimizer/Pass.pbc
+            build/Tree/Optimizer/Transformers.pbc
             build/Tree/Pattern.pbc
             build/Tree/Pattern/Any.pbc
             build/Tree/Pattern/Closure.pbc
