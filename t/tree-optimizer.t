@@ -82,9 +82,15 @@ plan(16);
 
 {
     class Even {
-        method ACCEPTS ($n) { $n % 2 == 0; }
+        method ACCEPTS ($n) {
+            if $n % 2 == 0 {
+                $n / 2;
+            } else {
+                0;
+            }
+        }
     }
-    my &inc := sub ($n) { $n + 1; };
+    my &inc := sub ($n) { 2 * $n + 1; };
     {
         my $opt := Tree::Optimizer.new;
         $opt.register(&inc, :when(Even.new));
