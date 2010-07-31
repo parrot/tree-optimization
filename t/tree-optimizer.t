@@ -2,7 +2,7 @@
 
 pir::load_bytecode('Tree/Optimizer.pbc');
 
-plan(16);
+plan(19);
 
 {
     my $opt := Tree::Optimizer.new;
@@ -109,17 +109,53 @@ pir::load_bytecode('PCT.pbc');
 pir::load_bytecode('PAST/Pattern.pbc');
 {
     my $past := PAST::Stmts.new(PAST::Val.new(:value(6)));
-    my $target := PAST::Pattern::Stmts.new(PAST::Pattern::Val.new(:value(7)));
-    my $opt := Tree::Optimizer.new;
     my &inc := sub transform ($node) {
         if $node.match(PAST::Pattern::Val.new, :exact(1)) {
             $node.value($node.value + 1);
         }
         $node;
     };
-    $opt.register(&inc, :recursive(1));
-    ok($opt.run($past) ~~ $target,
-       'A pass with :recursive correctly recurses.');
+    {
+        my $target :=
+          PAST::Pattern::Stmts.new(PAST::Pattern::Val.new(:value(6)));
+        my $opt := Tree::Optimizer.new;
+        $opt.register(&inc);
+        ok($opt.run($past.clone) ~~ $target,
+           'A pass without :recursive does not recurse.');
+    }
+    {
+        my $target :=
+          PAST::Pattern::Stmts.new(PAST::Pattern::Val.new(:value(7)));
+        my $opt := Tree::Optimizer.new;
+        $opt.register(&inc, :recursive(1));
+        ok($opt.run($past.clone) ~~ $target,
+           'A pass with :recursive correctly recurses.');
+    }
+}
+
+{
+    my $past := PAST::Stmts.new(PAST::Val.new(:value(6)));
+    my &inc := sub ($/) {
+        $/.orig.value($/.orig.value + 1);
+        $/.orig;
+    };
+    my $pattern := PAST::Pattern::Val.new;
+    {
+        my $target :=
+          PAST::Pattern::Stmts.new(PAST::Pattern::Val.new(:value(6)));
+        my $opt := Tree::Optimizer.new;
+        $opt.register(&inc, :when($pattern));
+        ok($opt.run($past.clone) ~~ $target,
+           ':when patterns do not recurse unless :recursive is supplied.');
+    }
+    {
+        my $target :=
+          PAST::Pattern::Stmts.new(PAST::Pattern::Val.new(:value(7)));
+        my $opt := Tree::Optimizer.new;
+        $opt.register(&inc, :when($pattern), :recursive(1));
+        ok($opt.run($past.clone) ~~ $target,
+           ':when patterns do recurse with :recursive.');
+    }
 }
 
 # Local Variables:
