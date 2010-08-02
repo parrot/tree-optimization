@@ -2,7 +2,7 @@
 
 pir::load_bytecode('Tree/Optimizer.pbc');
 
-plan(19);
+plan(23);
 
 {
     my $opt := Tree::Optimizer.new;
@@ -156,6 +156,61 @@ pir::load_bytecode('PAST/Pattern.pbc');
         ok($opt.run($past.clone) ~~ $target,
            ':when patterns do recurse with :recursive.');
     }
+}
+
+{
+    class TransformCounter {
+        has $!count;
+        has $!pattern;
+
+        our multi method count ($count) { $!count := $count; }
+        our multi method count () { $!count; }
+
+        our multi method pattern ($pattern) { $!pattern := $pattern; }
+        our multi method pattern () { $!pattern; }
+
+        method transformer_class () {
+            $!count++;
+            $!pattern.transformer_class;
+        }
+
+        method ACCEPTS(*@_, *%_) {
+            $!pattern.ACCEPTS(|@_, |%_);
+        }
+    }
+    sub countTransforms ($pattern) {
+        my $ret := TransformCounter.new;
+        $ret.count(0);
+        $ret.pattern($pattern);
+        $ret;
+    }
+    my $opt := Tree::Optimizer.new;
+    my &inc := sub ($/) {
+        $/.orig.value($/.orig.value + 1);
+        $/.orig;
+    };
+    my &double := sub ($/) {
+        $/.orig.value($/.orig.value * 2);
+        $/.orig;
+    }
+    my $pattern := countTransforms(PAST::Pattern::Val.new);
+#    my $pattern := PAST::Pattern::Val.new;
+    $opt.register(&inc, :name<inc>,
+                  :when($pattern), :recursive(1));
+    $opt.register(&double, :depends-on<inc>,
+                  :when($pattern), :recursive(1));
+
+    my $past := PAST::Val.new(:value(6));
+    my $target := PAST::Pattern::Val.new(:value(14));
+    ok($opt.run($past.clone) ~~ $target,
+       ':combine test optimizer runs correctly without combine.');
+    ok($pattern.count == 2,
+       'Without :combine, the test optimizer calls .transform twice.');
+    ok($opt.run($past.clone, :combine(1)) ~~ $target,
+       ':combine produces same result as without it.');
+    ok($pattern.count == 2,
+       'With :combine, .transform is not called.');
+    
 }
 
 # Local Variables:
