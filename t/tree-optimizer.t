@@ -194,7 +194,6 @@ pir::load_bytecode('PAST/Pattern.pbc');
         $/.orig;
     }
     my $pattern := countTransforms(PAST::Pattern::Val.new);
-#    my $pattern := PAST::Pattern::Val.new;
     $opt.register(&inc, :name<inc>,
                   :when($pattern), :recursive(1));
     $opt.register(&double, :depends-on<inc>,
