@@ -1,9 +1,5 @@
 class Tree::Optimizer::Pass;
 
-INIT {
-    pir::load_bytecode('Tree/Optimizer/Transformers.pbc');
-}
-
 has $!name;
 has $!recursive;
 has $!transformation;
@@ -12,8 +8,14 @@ has $!when;
 our multi method name () { $!name; }
 our multi method name ($name) { $!name := $name; }
 
+our multi method recursive () { $!recursive; }
+our multi method recursive ($recursive) { $!recursive := $recursive; }
+
 our multi method transformation () { $!transformation; }
 our multi method transformation ($tran) { $!transformation := $tran; }
+
+our multi method when () { $!when; }
+our multi method when ($when) { $!when := $when; }
 
 method new ($trans, *%adverbs) {
     pir::die(" A pass' transformation must not be undefined.")

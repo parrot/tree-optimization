@@ -1,6 +1,8 @@
 class Tree::Optimizer;
 
 INIT {
+    pir::load_bytecode('Tree/Optimizer/Transformers.pbc');
+    pir::load_bytecode('Tree/Optimizer/CombinedPass.pbc');
     pir::load_bytecode('Tree/Optimizer/Pass.pbc');
     pir::load_bytecode('nqp-setting.pbc');
 }
@@ -92,9 +94,9 @@ method remove-dependency ($dependent, $dependency) {
     }
 }
 
-method run ($tree) {
+method run ($tree, :$combine) {
     my $result := $tree;
-    for self.pass-order -> $pass {
+    for self.pass-order(:combine($combine)) -> $pass {
         $result := self.run-pass($pass, $result);
     }
     $result;
@@ -104,9 +106,14 @@ method run-pass ($pass, $tree) {
     $pass.run($tree);
 }
 
-method pass-order () {
+method combine-passes (*@passes) {
+    Tree::Optimizer::CombinedPass.new(@passes);
+}
+
+method pass-order (:$combine) {
     my @result;
     my @no-preds;
+    my @combine-buffer;
     for %!passes {
         @no-preds.push($_.key) unless
           pir::exists__IQs(%!predecessors, $_.key);
@@ -115,7 +122,18 @@ method pass-order () {
     my %old-succs := pir::clone__PP(%!successors);
     while +@no-preds != 0 {
         my $name := @no-preds.pop;
-        @result.push(self.find-pass($name));
+        my $pass := self.find-pass($name);
+        if $combine {
+            if pir::defined__IP($pass.when) && $pass.recursive {
+                @combine-buffer.push($pass);
+            } else {
+                @result.push(self.combine-passes(|@combine-buffer));
+                @combine-buffer := [];
+                @result.push($pass);
+            }
+        } else {
+            @result.push($pass);
+        }
         for %!successors{$name} -> $dependent {
             self.remove-dependency($dependent, $name);
             unless %!predecessors{$dependent} &&
@@ -131,5 +149,7 @@ method pass-order () {
     }
     %!predecessors := %old-preds;
     %!successors := %old-succs;
+    @result.push(self.combine-passes(|@combine-buffer))
+      if $combine && @combine-buffer;
     @result;
 }
