@@ -2,7 +2,7 @@
 
 pir::load_bytecode('Tree/Optimizer.pbc');
 
-plan(23);
+plan(26);
 
 {
     my $opt := Tree::Optimizer.new;
@@ -209,6 +209,66 @@ pir::load_bytecode('PAST/Pattern.pbc');
        ':combine produces same result as without it.');
     ok($pattern.count == 2,
        'With :combine, .transform is not called.');
+}
+
+{
+    my $opt := Tree::Optimizer.new;
+    my $past := PAST::Stmts.new(PAST::Val.new(:value(5)),
+                                PAST::Val.new(:value(-5)));
+    my $target :=
+      PAST::Pattern::Stmts.new(PAST::Pattern::Val.new(:value(6)));
+    my $neg-pattern := PAST::Pattern::Val.new(:value(-> $n { $n < 0; } ));
+    my $val-pattern := PAST::Pattern::Val.new;
+
+    my &trim-neg := sub ($past) {
+        if $past.match($neg-pattern, :exact(1)) {
+            pir::null__P;
+        } else {
+            $past;
+        }
+    };
+    my &inc := sub ($past) {
+        if $past.match($val-pattern, :exact(1)) {
+            $past.value($past.value + 1);
+            $past;
+        } else {
+            $past;
+        }
+    };
+
+    $opt.register(&trim-neg, :name<trim-neg>, :recursive(1));
+    $opt.register(&inc, :depends-on<trim-neg>, :recursive(1));
+    ok($opt.run($past) ~~ $target,
+       'Null results are handled properly with :recursive.');
+}
+
+{
+    my $opt := Tree::Optimizer.new;
+    my $target :=
+      PAST::Pattern::Stmts.new(PAST::Pattern::Val.new(:value(6)));
+    my $neg-pattern := PAST::Pattern::Val.new(:value(-> $n { $n < 0; } ));
+    my $val-pattern := PAST::Pattern::Val.new;
+
+    my &trim-neg := sub ($/) {
+        pir::null__P;
+    };
+    my &inc := sub ($/) {
+        $/.orig.value($/.orig.value + 1);
+        $/.orig;
+    };
+
+    $opt.register(&trim-neg, :name<trim-neg>,
+                  :recursive(1), :when($neg-pattern));
+    $opt.register(&inc, :depends-on<trim-neg>,
+                  :recursive(1), :when($val-pattern));
+    my $past := PAST::Stmts.new(PAST::Val.new(:value(5)),
+                                PAST::Val.new(:value(-5)));
+    ok($opt.run($past) ~~ $target,
+       'Null results are handled properly with :when and :recursive.');
+    $past := PAST::Stmts.new(PAST::Val.new(:value(5)),
+                             PAST::Val.new(:value(-5)));
+    ok($opt.run($past) ~~ $target,
+       'Null results are handled properly with :when/:recursive/:combine.');
 }
 
 # Local Variables:
