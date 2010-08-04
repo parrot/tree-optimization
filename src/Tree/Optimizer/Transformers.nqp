@@ -33,17 +33,20 @@ class Tree::Optimizer::Transformer::Combined is Tree::Transformer {
 module Tree::Walker {
     our multi walk (Tree::Optimizer::Transformer::Single $walker, $node) {
         my $result := $walker.transform()($node);
-        replaceChildren($result, walkChildren($walker, $result));
+        replaceChildren($result, walkChildren($walker, $result))
+          unless pir::isnull__IP($result);
         $result;
     }
 
     our multi walk (Tree::Optimizer::Transformer::Combined $walker, $node) {
         my $result := $node;
         for $walker.passes -> $pass {
-            my $/ := $pass.when.ACCEPTS($node, :exact(1));
+            my $/ := $pass.when.ACCEPTS($result, :exact(1));
             $result := $pass.transformation()($/) if $/;
+            last if pir::isnull__IP($result);
         }
-        replaceChildren($result, walkChildren($walker, $result));
+        replaceChildren($result, walkChildren($walker, $result))
+          unless pir::isnull__IP($result);
         $result;
     }
 }
