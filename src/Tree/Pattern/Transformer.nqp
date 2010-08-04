@@ -119,7 +119,7 @@ module Tree::Walker {
             $shouldDescend := !$walker.descend_until.ACCEPTS($node);
         }
 
-        if ($shouldDescend) {
+        if ($shouldDescend && !pir::isnull__IP($result)) {
             $walker.depth($walker.depth + 1);
             my $newChildren := walkChildren($walker, $result);
             replaceChildren($result, $newChildren);
