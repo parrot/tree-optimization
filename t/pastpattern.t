@@ -5,7 +5,7 @@
 pir::load_bytecode('PCT.pbc');
 pir::load_bytecode('PAST/Pattern.pbc');
 
-plan(2151);
+plan(2153);
 
 test_type_matching();
 test_attribute_exact_matching();
@@ -825,6 +825,17 @@ sub test_transform_sub () {
        'Matched node 2 is changed. 2');
     ok($result[1][1][0].value() == 2,
        'Matched nodes within other matched nodes are changed.');
+
+    sub del ($/) {
+        pir::null__P;
+    }
+    $pattern := PAST::Pattern::Val.new;
+    $past := PAST::Stmts.new(PAST::Val.new, PAST::Op.new);
+    $result := $pattern.transform($past, del);
+    ok($result ~~ PAST::Stmts,
+       'Non-matched nodes left unchanged 2.');
+    ok($result[0] ~~ PAST::Op,
+       'Deletion of nodes is correctly handled.');
 }
 
 sub test_transform_options () {
