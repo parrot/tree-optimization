@@ -209,7 +209,6 @@ pir::load_bytecode('PAST/Pattern.pbc');
        ':combine produces same result as without it.');
     ok($pattern.count == 2,
        'With :combine, .transform is not called.');
-    
 }
 
 # Local Variables:
