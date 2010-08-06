@@ -43,6 +43,7 @@ method register ($transformation, *%adverbs) {
                 $pass.dependencies.append(%adverbs<depends-on>);
             }
         }
+        $pass.name(%adverbs<name>) if pir::exists__IQs(%adverbs, 'name');
     } else {
         $pass := Tree::Optimizer::Pass.new($transformation, |%adverbs);
     }
