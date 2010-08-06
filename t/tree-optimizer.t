@@ -2,7 +2,7 @@
 
 pir::load_bytecode('Tree/Optimizer.pbc');
 
-plan(32);
+plan(33);
 
 {
     my $opt := Tree::Optimizer.new;
@@ -305,6 +305,14 @@ pir::load_bytecode('PAST/Pattern.pbc');
         ok($opt.run(5) == 11,
            '.register(Pass) respects dependencies 2.');
     }
+}
+
+{
+    my $inc := Tree::Optimizer::Pass.new(-> $n { $n + 1; });
+    my $opt := Tree::Optimizer.new;
+    $opt.register($inc, :name<inc>);
+    ok(pir::defined__IP($opt.find-pass('inc')),
+       'Adding .name to an existing pass object when .registering works.');
 }
 
 {
