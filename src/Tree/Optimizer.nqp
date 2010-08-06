@@ -33,7 +33,10 @@ method find-pass ($name) {
 }
 
 method register ($transformation, *%adverbs) {
-    my $pass := Tree::Optimizer::Pass.new($transformation, |%adverbs);
+    my $pass := 
+      ($transformation ~~ Tree::Optimizer::Pass
+       ?? $transformation
+       !! Tree::Optimizer::Pass.new($transformation, |%adverbs));
     %!passes{$pass.name} := $pass;
     for $pass.dependencies -> $dependency {
         self.add-dependency($pass.name, $dependency);
