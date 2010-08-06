@@ -35,17 +35,8 @@ method find-pass ($name) {
 method register ($transformation, *%adverbs) {
     my $pass := Tree::Optimizer::Pass.new($transformation, |%adverbs);
     %!passes{$pass.name} := $pass;
-    my $depends-on := %adverbs<depends-on>;
-    if $depends-on {
-        my @dependencies;
-        if pir::isa__IPP($depends-on, String) {
-            @dependencies := pir::split__PSS(' ', $depends-on);
-        } else {
-            @dependencies := $depends-on;
-        }
-        for @dependencies -> $dependency {
-            self.add-dependency($pass.name, $dependency);
-        }
+    for $pass.dependencies -> $dependency {
+        self.add-dependency($pass.name, $dependency);
     }
 }
 

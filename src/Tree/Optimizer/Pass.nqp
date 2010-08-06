@@ -1,9 +1,13 @@
 class Tree::Optimizer::Pass;
 
+has @!dependencies;
 has $!name;
 has $!recursive;
 has $!transformation;
 has $!when;
+
+our multi method dependencies () { @!dependencies; }
+our multi method dependencies (@deps) { @!dependencies := @deps; }
 
 our multi method name () { $!name; }
 our multi method name ($name) { $!name := $name; }
@@ -29,11 +33,17 @@ my $current-gen-name := 0;
 sub gen-name () {
     '__unnamed_' ~ $current-gen-name++;
 }
-method BUILD (:$transformation, :$name, :$recursive, :$when, *%ignored) {
+method BUILD (:$transformation, :$name, :$recursive, :$when, *%rest) {
     $!name := $name || gen-name();
     $!recursive := $recursive || 0;
     $!transformation := $transformation;
     $!when := $when;
+    my $depends-on := %rest<depends-on>;
+    if $depends-on {
+        @!dependencies := (pir::isa__IPP($depends-on, String)
+                           ?? [ $depends-on ] 
+                           !! $depends-on);
+    }
 }
 
 method run ($tree) {
