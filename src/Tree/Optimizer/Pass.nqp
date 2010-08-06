@@ -29,6 +29,11 @@ method new ($trans, *%adverbs) {
     $self;
 }
 
+method clone () {
+    self.new($!transformation, :name($!name), :recursive($!recursive),
+             :when($!when), :depends-on(pir::clone__PP(@!dependencies)));
+}
+
 my $current-gen-name := 0;
 sub gen-name () {
     '__unnamed_' ~ $current-gen-name++;
@@ -43,6 +48,8 @@ method BUILD (:$transformation, :$name, :$recursive, :$when, *%rest) {
         @!dependencies := (pir::isa__IPP($depends-on, String)
                            ?? [ $depends-on ] 
                            !! $depends-on);
+    } else {
+        @!dependencies := [];
     }
 }
 
