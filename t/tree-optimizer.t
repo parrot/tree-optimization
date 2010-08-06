@@ -2,7 +2,7 @@
 
 pir::load_bytecode('Tree/Optimizer.pbc');
 
-plan(30);
+plan(32);
 
 {
     my $opt := Tree::Optimizer.new;
@@ -278,7 +278,7 @@ pir::load_bytecode('PAST/Pattern.pbc');
     };
     my $pass := Tree::Optimizer::Pass.new(&inc, :name<inc>);
     $opt.register($pass);
-    ok($opt.find-pass('inc') =:= $pass,
+    ok(pir::defined__IP($opt.find-pass('inc')),
        '.register with a pass correctly stores the pass by name.');
     ok($opt.run(5) == 6,
        'Passes that were directly .registered are ran.');
@@ -304,6 +304,25 @@ pir::load_bytecode('PAST/Pattern.pbc');
         $opt.register(Tree::Optimizer::Pass.new(&inc, :depends-on<double>));
         ok($opt.run(5) == 11,
            '.register(Pass) respects dependencies 2.');
+    }
+}
+
+{
+    my $inc := Tree::Optimizer::Pass.new(-> $n { $n + 1; }, :name<inc>);
+    my $double := Tree::Optimizer::Pass.new(-> $n { $n * 2; }, :name<double>);
+    {
+        my $opt := Tree::Optimizer.new;
+        $opt.register($inc);
+        $opt.register($double, :depends-on<inc>);
+        ok($opt.run(5) == 12,
+           'Adding dependencies after pass-creation with .register 1.');
+    }
+    {
+        my $opt := Tree::Optimizer.new;
+        $opt.register($inc, :depends-on<double>);
+        $opt.register($double);
+        ok($opt.run(5) == 11,
+           'Adding dependencies after pass-creation with .register 2.');
     }
 }
 
