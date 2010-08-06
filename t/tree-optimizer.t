@@ -2,7 +2,7 @@
 
 pir::load_bytecode('Tree/Optimizer.pbc');
 
-plan(26);
+plan(30);
 
 {
     my $opt := Tree::Optimizer.new;
@@ -269,6 +269,42 @@ pir::load_bytecode('PAST/Pattern.pbc');
                              PAST::Val.new(:value(-5)));
     ok($opt.run($past) ~~ $target,
        'Null results are handled properly with :when/:recursive/:combine.');
+}
+
+{
+    my $opt := Tree::Optimizer.new;
+    my &inc := sub ($n) {
+        $n + 1;
+    };
+    my $pass := Tree::Optimizer::Pass.new(&inc, :name<inc>);
+    $opt.register($pass);
+    ok($opt.find-pass('inc') =:= $pass,
+       '.register with a pass correctly stores the pass by name.');
+    ok($opt.run(5) == 6,
+       'Passes that were directly .registered are ran.');
+}
+
+{
+    my &inc := sub ($n) {
+        $n + 1;
+    };
+    my &double := sub ($n) {
+        $n * 2;
+    };
+    {
+        my $opt := Tree::Optimizer.new;
+        $opt.register(Tree::Optimizer::Pass.new(&inc, :name<inc>));
+        $opt.register(Tree::Optimizer::Pass.new(&double, :depends-on<inc>));
+        ok($opt.run(5) == 12,
+           '.register(Pass) respects dependencies 1.');
+    }
+    {
+        my $opt := Tree::Optimizer.new;
+        $opt.register(Tree::Optimizer::Pass.new(&double, :name<double>));
+        $opt.register(Tree::Optimizer::Pass.new(&inc, :depends-on<double>));
+        ok($opt.run(5) == 11,
+           '.register(Pass) respects dependencies 2.');
+    }
 }
 
 # Local Variables:
