@@ -22,6 +22,10 @@ sub MAIN() {
 
         # build
         pir_nqp             => unflatten(
+            'build/PAST/Optimizer.pir',                   'src/PAST/Optimizer.nqp',
+            'build/PAST/Optimizer/CombinedPass.pir',    'src/PAST/Optimizer/CombinedPass.nqp',
+            'build/PAST/Optimizer/Pass.pir',            'src/PAST/Optimizer/Pass.nqp',
+            'build/PAST/Optimizer/Transformers.pir',    'src/PAST/Optimizer/Transformers.nqp',
             'build/PAST/Pattern.pir',                   'src/PAST/Pattern.nqp',
             'build/PAST/Pattern/Transformer.pir',       'src/PAST/Pattern/Transformer.nqp',
             'build/PAST/Transformer.pir',               'src/PAST/Transformer.nqp',
@@ -44,6 +48,10 @@ sub MAIN() {
             'build/Tree/Walker.pir',                    'src/Tree/Walker.nqp',
         ),
         pbc_pir             => unflatten(
+            'build/PAST/Optimizer.pbc',                 'build/PAST/Optimizer.pir',
+            'build/PAST/Optimizer/CombinedPass.pbc',    'build/PAST/Optimizer/CombinedPass.pir',
+            'build/PAST/Optimizer/Pass.pbc',            'build/PAST/Optimizer/Pass.pir',
+            'build/PAST/Optimizer/Transformers.pbc',    'build/PAST/Optimizer/Transformers.pir',
             'build/PAST/Pattern.pbc',                   'build/PAST/Pattern.pir',
             'build/PAST/Pattern/Transformer.pbc',       'build/PAST/Pattern/Transformer.pir',
             'build/PAST/Transformer.pbc',               'build/PAST/Transformer.pir',
@@ -73,6 +81,10 @@ sub MAIN() {
 
         # install
         inst_lib            => <
+            build/PAST/Optimizer.pbc
+            build/PAST/Optimizer/CombinedPass.pbc
+            build/PAST/Optimizer/Pass.pbc
+            build/PAST/Optimizer/Transformers.pbc
             build/PAST/Pattern.pbc
             build/PAST/Pattern/Transformer.pbc
             build/PAST/Transformer.pbc
