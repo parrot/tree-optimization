@@ -32,9 +32,13 @@ method find-pass ($name) {
     %!passes{$name};
 }
 
+method pass-class () {
+    Tree::Optimizer::Pass;
+}
+
 method register ($transformation, *%adverbs) {
     my $pass;
-    if $transformation ~~ Tree::Optimizer::Pass {
+    if $transformation ~~ self.pass-class {
         $pass := $transformation.clone;
         if pir::exists__IQs(%adverbs, 'depends-on') {
             if pir::isa__IPP(%adverbs<depends-on>, String) {
@@ -45,7 +49,7 @@ method register ($transformation, *%adverbs) {
         }
         $pass.name(%adverbs<name>) if pir::exists__IQs(%adverbs, 'name');
     } else {
-        $pass := Tree::Optimizer::Pass.new($transformation, |%adverbs);
+        $pass := self.pass-class.new($transformation, |%adverbs);
     }
     %!passes{$pass.name} := $pass;
     for $pass.dependencies -> $dependency {
