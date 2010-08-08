@@ -9,7 +9,11 @@ method new (@passes) {
 }
 
 method BUILD (:@passes) {
-    $!transformer := Tree::Optimizer::Transformer::Combined.new(@passes)
+    $!transformer := self.transformer-class.new(@passes)
+}
+
+method transformer-class () {
+    Tree::Optimizer::Transformer::Combined;
 }
 
 method run ($tree) {
