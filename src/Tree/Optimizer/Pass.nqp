@@ -68,10 +68,14 @@ method run ($tree) {
     }
 }
 
+method transformer-class () {
+    Tree::Optimizer::Transformer::Single;
+}
+
 method generate-transformer () {
     if pir::defined__IP($!when) {
         $!when.transformer_class.new($!when, $!transformation);
     } else {
-        Tree::Optimizer::Transformer::Single.new($!transformation);
+        self.transformer-class.new($!transformation);
     }
 }
