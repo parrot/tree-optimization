@@ -12,6 +12,11 @@ class PAST::Transformer is Tree::Transformer {
 }
 
 module Tree::Walker {
+    our multi sub walkChildren (PAST::Transformer $walker, Integer $str) { }
+    our multi sub replaceChildren (Integer $str, $newChildren) { }
+    our multi sub walkChildren (PAST::Transformer $walker, String $str) { }
+    our multi sub replaceChildren (String $str, $newChildren) { }
+
     our multi sub walkChildren (PAST::Transformer $walker,
                                 PAST::Block $block) {
         my $results := pir::new__PP(Capture);
