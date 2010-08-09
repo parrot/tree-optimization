@@ -2,7 +2,7 @@
 
 pir::load_bytecode('Tree/Optimizer.pbc');
 
-plan(33);
+plan(37);
 
 {
     my $opt := Tree::Optimizer.new;
@@ -209,6 +209,17 @@ pir::load_bytecode('PAST/Pattern.pbc');
        ':combine produces same result as without it.');
     ok($pattern.count == 2,
        'With :combine, .transform is not called.');
+    $past := PAST::Stmts.new(PAST::Val.new(:value(6)));
+    $target := PAST::Pattern::Stmts.new(PAST::Pattern::Val.new(:value(14)));
+    ok($opt.run($past.clone) ~~ $target,
+       'Second :combine test optimizer runs correctly without combine.');
+    ok($pattern.count == 4,
+       'Second :combine test optimizer calls .transform twice without :combine.');
+    $past := PAST::Stmts.new(PAST::Val.new(:value(6)));
+    ok($opt.run($past.clone, :combine(1)) ~~ $target,
+       ':combine produces same result as without it for second test optimizer.');
+    ok($pattern.count == 4,
+       'With :combine, .transform is not called with second test optimizer.');
 }
 
 {
