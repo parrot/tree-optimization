@@ -1,0 +1,79 @@
+=head1 NAME
+
+Tree::Optimizer - A tool for scheduling optimization passes
+
+=head1 DESCRIPTION
+
+Tree::Optimizer and its subclasses allow specifying a set of transformations (called passes) to be performed on a tree and the dependencies between those passes. Once the passes and their dependencies have been registered, the C<run> method will run the registered passes on a tree, ensuring that each pass runs after any passes on which it depends.
+
+=head1 Tree::Optimizer
+
+=head2 Public methods
+
+=over 4
+
+=item new()
+
+Create a new Tree::Optimizer.
+
+=item find-pass(name)
+
+Returns the pass that was registered with the specified name or an Undef PMC if no pass has been registered with the specified name.
+
+=item register(transformation, adverbs :named :slurpy)
+
+Registers a pass to be run. The transformation may be either a Tree::Optimizer::Pass object, in which case, it is cloned and registered. Otherwise, it is assumed to be an invokable object that performs the desired transformation, and it is used to create a new object of the class returned by the C<pass-class> method. It is an error to supply a null transformation.
+
+The adverbs slurpy named parameter accepts all of the named parameters that C<Tree::Optimizer::Pass.new> does. They are generally simply passed on to C<Tree::Optimizer::Pass.new>. The name and depends-on named parameters are two exceptions. If the transformation is a pass object, then the name of the pass is changed to the supplied name, if any, and the dependencies in the supplied depends-on parameter are added to those listed in the pass obejct itself.
+
+=item add-dependency(dependent, dependency)
+
+Marks the pass named dependent as depending on the pass named dependency.
+
+=item remove-dependency(dependent, dependency)
+
+Removes dependent's dependency on dependency. This does not modify the list of the dependencies of the dependent pass. It causes the optimizer to forget that dependent depends on dependency. If dependent does not depend on dependency, the remove-dependency method throws an exception.
+
+=item run(tree, combine :named)
+
+Runs the registered passes on the tree. If the combine option is supplied and is true, any adjacent passes with a I<when> pattern and with the I<recursive> flag set will be performed in a single traversal of the tree.
+
+=back
+
+=head2 Overriden methods
+
+These methods are intended to be overridden in subclasses in order to augment Tree::Optimizer's behavior.
+
+=over 4
+
+=item pass-class()
+
+Returns the Tree::Optimizer::Pass subclass which should be used to create new passes.
+
+=item combine-passes(passes :slurpy)
+
+Creates a single Tree::Optimizer::CombinedPass from the supplied passes.
+
+=back
+
+=head2 Internal methods
+
+These methods are used internally and should not generally be used by users of Tree::Optimizer.
+
+=over 4
+
+=item BUILD()
+
+Initializes a newly-created Tree::Optimizer. It is called by new.
+
+=item run-pass(name, tree)
+
+Runs the pass with the supplied name on the tree.
+
+=item pass-order(combine :named)
+
+Produce the list of passes that the optimizer should run in the correct order. If combine is provided and true, combine adjacent I<when>/I<recursive> passes into single CombinedPasses.
+
+=back
+
+=cut
