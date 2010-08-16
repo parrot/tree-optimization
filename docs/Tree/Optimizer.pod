@@ -40,7 +40,7 @@ Runs the registered passes on the tree. If the combine option is supplied and is
 
 =back
 
-=head2 Overriden methods
+=head2 Overridden methods
 
 These methods are intended to be overridden in subclasses in order to augment Tree::Optimizer's behavior.
 
