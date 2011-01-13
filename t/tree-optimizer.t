@@ -82,7 +82,7 @@ plan(37);
 
 {
     class Even {
-        method ACCEPTS ($n) {
+        method ACCEPTS ($n, *%opts) {
             if $n % 2 == 0 {
                 $n / 2;
             } else {
