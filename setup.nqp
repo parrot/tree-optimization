@@ -79,6 +79,12 @@ sub MAIN() {
                                             ~ get_libdir() ~ '/library/nqp-rx.pbc',
         test_files          => 't/*.t',
 
+        # smoke
+        smolder_url         => 'http://smolder.parrot.org/app/projects/process_add_report/9',
+        smolder_comments    => 'tree-optimization',
+        smolder_tags        => get_tags(),
+        prove_archive       => 'report.tar.gz',
+
         # install
         inst_lib            => <
             build/PAST/Optimizer.pbc
@@ -122,6 +128,11 @@ sub MAIN() {
 # Work around minor nqp-rx limitations
 sub hash     (*%h ) { %h }
 sub unflatten(*@kv) { my %h; for @kv -> $k, $v { %h{$k} := $v }; %h }
+
+sub get_tags() {
+    my $r := get_config();
+    $r<osname> ~ ', ' ~ $r<archname> ~ ', tree-optimizations'
+}
 
 # Start it up!
 MAIN();
