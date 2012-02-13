@@ -17,3 +17,12 @@ This library mainly focuses on PAST (Parrot Abstract Syntax Tree) and POST
 # Installing
 
     parrot-nqp setup.nqp install
+
+# Authors
+
+This library was originally written as part of Google Summer of Code by Tyler
+Curtis. There have been various improvements and fixes by others.
+
+# Copyright
+
+tree-optimization is Copyright (C) 2010-2012, Parrot Foundation.
