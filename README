@@ -1,3 +1,0 @@
-tree-optimization : A Parrot VM library for analysis, pattern-matching and transformation of trees
-
-This library mainly focuses on PAST (Parrot Abstract Syntax Tree) and POST (Parrot Opcode Syntax Tree) trees.
