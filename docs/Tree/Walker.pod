@@ -1,5 +1,4 @@
 # Copyright (C) 2010, Parrot Foundation.
-# $Id$
 
 =head1 NAME
 
@@ -12,7 +11,8 @@ some operation on them.
 
 Trees are represented as Captures or subclasses of Capture.
 
-This conveniently includes PCT::Node and its subclasses PAST::Node and POST::Node.
+This conveniently includes PCT::Node and its subclasses PAST::Node and
+POST::Node.
 
 =head1 Tree::Walker
 

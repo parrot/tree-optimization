@@ -4,13 +4,18 @@ Tree::Optimizer::Pass - an optimization pass for Tree::Optimizer
 
 =head1 DESCRIPTION
 
-Tree::Optimizer::Pass objects represent optimization passes in a Tree::Optimizer. They can be created in two ways: by directly invoking Tree::Optimizer::Pass.new, or by registering a pass in a Tree::Optimizer. In the latter case, a Tree::Optimizer::Pass is implicitly created. 
+Tree::Optimizer::Pass objects represent optimization passes in a
+L<Tree::OptimizerL. They can be created in two ways: by directly invoking
+Tree::Optimizer::Pass.new, or by registering a pass in a
+Tree::Optimizer. In the latter case, a Tree::Optimizer::Pass is
+implicitly created.
 
 =head1 Tree::Optimizer::Pass
 
 =head2 Attributes
 
-Each of these attributes can be accessed and modified using the method of the same name.
+Each of these attributes can be accessed and modified using the method
+of the same name.
 
 =over 4
 
@@ -28,11 +33,19 @@ A boolean flag indicating whether the pass should automatically recurse into sub
 
 =item transformation
 
-The invokable object which will be used to transform the tree. If no when pattern is supplied, the transformation is called with the tree to be transformed. If a when pattern is supplied, then the transformation is invoked with the result of matching the tree against the pattern.
+The invokable object which will be used to transform the tree. If no
+when pattern is supplied, the transformation is called with the tree
+to be transformed. If a when pattern is supplied, then the
+transformation is invoked with the result of matching the tree against
+the pattern.
 
 =item when
 
-A Tree::Pattern object that is used to determine whether the transformation should be performed. If a pass has both a when pattern and the recursive flag set, then it will recurse through the tree, running the transformation on only those children that match the when pattern.
+A L<Tree::Pattern> object that is used to determine whether the
+transformation should be performed. If a pass has both a when pattern
+and the recursive flag set, then it will recurse through the tree,
+running the transformation on only those children that match the when
+pattern.
 
 =back
 
@@ -42,11 +55,16 @@ A Tree::Pattern object that is used to determine whether the transformation shou
 
 =item new(transformation, name :named, recursive :named, when :named, depends-on :named)
 
-Creates a new pass with the supplied transformation, name, recursive flag, when pattern, and dependencies. If no name is supplied, a unique name is generated. The depends-on parameter may be either a string or an array of strings.
+Creates a new pass with the supplied transformation, name, recursive
+flag, when pattern, and dependencies. If no name is supplied, a unique
+name is generated. The depends-on parameter may be either a string or
+an array of strings.
 
 =item clone()
 
-Creates a new pass with the same attributes. The dependencies array is also copied so that adding dependencies to the new pass does not modify the original pass.
+Creates a new pass with the same attributes. The dependencies array is
+also copied so that adding dependencies to the new pass does not
+modify the original pass.
 
 =item run(tree)
 
@@ -56,19 +74,22 @@ Runs the pass on the supplied tree.
 
 =head2 Overridden methods
 
-These methods are intended to be overridden in subclasses in order to augment Tree::Optimizer::Pass's behavior.
+These methods are intended to be overridden in subclasses in order to
+augment Tree::Optimizer::Pass's behavior.
 
 =over 4
 
 =item transformer-class()
 
-Returns the Tree::Optimizer::Transformer::Single subclass that should be used to perform the transformation for when/recursive passes.
+Returns the Tree::Optimizer::Transformer::Single subclass that should
+be used to perform the transformation for when/recursive passes.
 
 =back
 
 =head2 Internal methods
 
-These methods are used internally to implement the public methods and should not generally be used by users of Tree::Optimizer::Pass.
+These methods are used internally to implement the public methods and
+should not generally be used by users of Tree::Optimizer::Pass.
 
 =over 4
 

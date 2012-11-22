@@ -1,5 +1,4 @@
 # Copyright (C) 2010, Parrot Foundation.
-# $Id$
 
 =head1 NAME
 
@@ -18,11 +17,12 @@ regex-like pattern matching on trees.
 
 =item patternize(value)
 
-Converts an object that is not a pattern(does not implement the ACCEPTS method)
-into one that is.
+Converts an object that is not a pattern(does not implement the
+ACCEPTS method) into one that is.
 
-If value is a Sub, it is used to create a Tree::Pattern::Closure pattern.
-Otherwise, it is used to create a Tree::Pattern::Constant pattern.
+If value is a Sub, it is used to create a Tree::Pattern::Closure
+pattern.  Otherwise, it is used to create a Tree::Pattern::Constant
+pattern.
 
 =back
 
@@ -36,18 +36,18 @@ This method tests the tree for matching the pattern.
 
 The result is always a Tree::Pattern::Match object.
 
-Normally, it matches at most one subtree and uses a depth-first traversal of the
-children of the tree to find matches.
+Normally, it matches at most one subtree and uses a depth-first
+traversal of the children of the tree to find matches.
 
 This behavior can be modified with named parameters.
 
-The ACCEPTS method can also be called in NQP-rx using the smart-matching
-operator.
+The ACCEPTS method can also be called in NQP-rx using the
+smart-matching operator.
 
 C<$pattern.ACCEPTS($tree)> can also be written C<$tree ~~ $pattern>.
 
-The named slurpy parameter "adverbs" is used to pass options that can be used
-to modify the behavior of matching:
+The named slurpy parameter "adverbs" is used to pass options that can
+be used to modify the behavior of matching:
 
 =over 4
 
@@ -143,7 +143,7 @@ An internal method used to implement the C<global>/C<g> option to ACCEPTS.
 
 =over 4
 
-=item * docs/user/library/Tree/Pattern/Match.pod
+=item * L<Tree::Pattern::Match>
 
 =back
 

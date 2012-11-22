@@ -1,5 +1,4 @@
 # Copyright (C) 2010, Parrot Foundation.
-# $Id$
 
 =head1 NAME
 
@@ -8,10 +7,10 @@ Tree::Pattern::Match - the result object from matching a Tree::Pattern
 =head1  DESCRIPTION
 
 Tree::Pattern::Match objects are returned by matching operations on
-Tree::Patterns.
+L<Tree::Pattern> objects.
 
-It can be used to determine whether the match was successful, find the matching
-node, and to find the match results of subpatterns.
+It can be used to determine whether the match was successful, find the
+matching node, and to find the match results of subpatterns.
 
 =head1 Tree::Pattern::Match
 
