@@ -211,6 +211,7 @@ pir::load_bytecode('PAST/Pattern.pbc');
        'With :combine, .transform is not called.');
     $past := PAST::Stmts.new(PAST::Val.new(:value(6)));
     $target := PAST::Pattern::Stmts.new(PAST::Pattern::Val.new(:value(14)));
+    # TODO with parrot 4.10
     ok($opt.run($past.clone) ~~ $target,
        'Second :combine test optimizer runs correctly without combine.');
     ok($pattern.count == 4,
